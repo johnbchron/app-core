@@ -1,0 +1,27 @@
+[package]
+name = "db"
+version = "0.1.0"
+edition = "2021"
+publish = false
+
+[lints]
+workspace = true
+
+[dependencies]
+hex = { path = "../hex" }
+kv = { path = "../kv", features = [] }
+model = { path = "../model" }
+
+async-trait.workspace = true
+miette.workspace = true
+tracing.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["rt"] }
+generic-tests = "0.1.3"
+
+[dev-dependencies]
+tokio = { workspace = true, features = ["full"] }
+ulid = { workspace = true }
+serde.workspace = true
+miette = { workspace = true, features = ["fancy"] }
+kv = { path = "../kv", features = ["mock"] }
