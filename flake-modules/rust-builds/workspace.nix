@@ -36,27 +36,28 @@
     config._module.args.rust-workspace = {
       inherit workspace-base-args workspace-base-cargo-artifacts;
     };
-    config.checks = {
+    config.checks = let
+      args-with-artifacts = workspace-base-args // { cargoArtifacts = workspace-base-cargo-artifacts; };
+    in {
       # run clippy, denying warnings
-      rust-cargo-clippy = rust-toolchain.craneLib.cargoClippy (workspace-base-args // {
-        cargoArtifacts = workspace-base-cargo-artifacts;
+      rust-cargo-clippy = rust-toolchain.craneLib.cargoClippy (args-with-artifacts // {
         cargoClippyExtraArgs = "--all-targets --no-deps -- --deny warnings";
         pnameSuffix = "-clippy-all";
       });
       # run rust-doc, denying warnings
-      rust-cargo-docs = rust-toolchain.craneLib.cargoDoc (workspace-base-args // {
-        cargoArtifacts = workspace-base-cargo-artifacts;
+      rust-cargo-docs = rust-toolchain.craneLib.cargoDoc (args-with-artifacts // {
         cargoClippyExtraArgs = "--no-deps";
         RUSTDOCFLAGS = "-D warnings";
       });
       # run rust tests with nextest
-      rust-cargo-nextest = rust-toolchain.craneLib.cargoNextest (workspace-base-args // {
-        cargoArtifacts = workspace-base-cargo-artifacts;
+      rust-cargo-nextest = rust-toolchain.craneLib.cargoNextest (args-with-artifacts // {
         partitions = 1;
         partitionType = "count";
       });
       # run cargo fmt, failing if not already formatted perfectly
       rust-cargo-fmt = rust-toolchain.craneLib.cargoFmt workspace-base-args;
+      # run rust doc tests
+      rust-cargo-doctests = rust-toolchain.craneLib.cargoDocTest args-with-artifacts;
     };
   };
 }
