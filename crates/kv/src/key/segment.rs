@@ -65,8 +65,8 @@ impl From<EitherSlug> for Segment {
 impl fmt::Display for Segment {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Strict(slug) => write!(f, "{}", slug),
-      Self::Lax(slug) => write!(f, "{}", slug),
+      Self::Strict(slug) => write!(f, "{slug}"),
+      Self::Lax(slug) => write!(f, "{slug}"),
     }
   }
 }

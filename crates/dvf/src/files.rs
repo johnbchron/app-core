@@ -67,7 +67,7 @@ impl fmt::Display for FileSize {
     const GB: u64 = 1000 * MB;
 
     match *self.as_ref() {
-      size if size < KB => write!(f, "{} B", size),
+      size if size < KB => write!(f, "{size} B"),
       size if size < MB => write!(f, "{:.2} KB", size as f64 / KB as f64),
       size if size < GB => {
         write!(f, "{:.2} MB", size as f64 / MB as f64)

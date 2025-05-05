@@ -26,7 +26,7 @@ pub struct Key {
 
 impl fmt::Debug for Key {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-    write!(f, "\"{}\"", self)
+    write!(f, "\"{self}\"")
   }
 }
 
@@ -97,7 +97,7 @@ impl fmt::Display for Key {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     write!(f, "{}", self.first_segment)?;
     for segment in self.segments.iter() {
-      write!(f, ":{}", segment)?;
+      write!(f, ":{segment}")?;
     }
     Ok(())
   }

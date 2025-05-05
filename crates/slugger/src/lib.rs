@@ -75,8 +75,8 @@ impl From<LaxSlug> for EitherSlug {
 impl fmt::Display for EitherSlug {
   fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
     match self {
-      Self::Strict(slug) => write!(f, "{}", slug),
-      Self::Lax(slug) => write!(f, "{}", slug),
+      Self::Strict(slug) => write!(f, "{slug}"),
+      Self::Lax(slug) => write!(f, "{slug}"),
     }
   }
 }
