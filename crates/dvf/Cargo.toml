@@ -1,17 +1,17 @@
 [package]
-name = "dvf"
-version = "0.1.0"
 edition = "2021"
+name = "dvf"
 publish = false
+version = "0.1.0"
 
 [dependencies]
 slugger = { path = "../slugger" }
 
-serde.workspace = true
-nutype = { workspace = true, features = [ "serde" ] }
-ulid.workspace = true
 email_address = "0.2"
-regex = { version = "1", default-features = false, features = [ "std" ], optional = true }
+nutype = { workspace = true, features = ["serde"] }
+regex = { version = "1", default-features = false, features = ["std"], optional = true }
+serde.workspace = true
+ulid.workspace = true
 
 [features]
 default = []
@@ -19,7 +19,7 @@ reasonable-email = ["dep:regex"]
 
 [package.metadata.cargo-machete]
 # `serde` only gets used in `nutype` macros
-ignored = [ "serde" ]
+ignored = ["serde"]
 
 [lints]
 workspace = true

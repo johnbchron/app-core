@@ -1,8 +1,8 @@
 [package]
-name = "storage"
-version = "0.1.0"
 edition = "2021"
+name = "storage"
 publish = false
+version = "0.1.0"
 
 [lints]
 workspace = true
@@ -13,13 +13,13 @@ dvf = { path = "../dvf" }
 hex = { path = "../hex" }
 
 async-trait.workspace = true
+bytes-stream = "0.0.3"
+futures.workspace = true
+miette.workspace = true
+object_store = { version = "0.10.1", features = ["aws"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs"] }
-object_store = { version = "0.10.1", features = ["aws"] }
-miette.workspace = true
-futures.workspace = true
 tracing.workspace = true
-bytes-stream = "0.0.3"
 
 [dev-dependencies]
 temp-dir = { version = "0.1" }

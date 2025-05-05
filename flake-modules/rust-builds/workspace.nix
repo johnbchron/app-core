@@ -54,10 +54,12 @@
         partitions = 1;
         partitionType = "count";
       });
-      # run cargo fmt, failing if not already formatted perfectly
-      rust-cargo-fmt = rust-toolchain.craneLib.cargoFmt workspace-base-args;
       # run rust doc tests
       rust-cargo-doctests = rust-toolchain.craneLib.cargoDocTest args-with-artifacts;
+      # run cargo fmt, failing if not already formatted perfectly
+      rust-cargo-fmt = rust-toolchain.craneLib.cargoFmt workspace-base-args;
+      # run taplo fmt, failing if not already formatted perfectly
+      rust-toml-fmt = rust-toolchain.craneLib.taploFmt workspace-base-args;
     };
   };
 }

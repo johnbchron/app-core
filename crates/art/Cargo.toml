@@ -1,8 +1,8 @@
 [package]
-name = "art"
-version = "0.1.0"
 edition = "2021"
+name = "art"
 publish = false
+version = "0.1.0"
 
 [lints]
 workspace = true
@@ -11,8 +11,8 @@ workspace = true
 artem = { version = "3", default-features = false }
 image = { version = "0.25", features = ["png"], default-features = false }
 
-syn = { version = "1", features = [ "full" ] }
 quote = { version = "1" }
+syn = { version = "1", features = ["full"] }
 
 [lib]
 proc-macro = true

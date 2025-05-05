@@ -1,17 +1,17 @@
 [package]
-name = "slugger"
-version = "0.1.0"
 edition = "2021"
+name = "slugger"
 publish = false
+version = "0.1.0"
 
 [lints]
 workspace = true
 
 [dependencies]
-serde.workspace = true
-nutype = { workspace = true, features = [ "serde" ] }
 deunicode = "1.6.0"
+nutype = { workspace = true, features = ["serde"] }
+serde.workspace = true
 
 [package.metadata.cargo-machete]
 # `serde` only gets used in `nutype` macros
-ignored = [ "serde" ]
+ignored = ["serde"]

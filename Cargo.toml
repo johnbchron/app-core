@@ -1,7 +1,7 @@
 
 [workspace]
-resolver = "3"
 members = ["crates/*"]
+resolver = "3"
 
 [workspace.lints.rust]
 missing_docs = "deny"
@@ -14,9 +14,7 @@ thiserror = { version = "1" }
 
 # errors
 # miette = { version = "7", default-features = false, features = [ "derive" ] }
-miette = { git = "https://github.com/zkat/miette", default-features = false, features = [
-  "derive",
-] }
+miette = { git = "https://github.com/zkat/miette", default-features = false, features = ["derive"] }
 
 # mainline application
 tokio = { version = "1" }
@@ -24,11 +22,11 @@ tokio-util = { version = "0.7" }
 
 # atomic-ish features
 bytes = { version = "1" }
-ulid = { version = "1.1", features = ["serde"] }
-nanorand = { version = "0.7", default-features = false }
 futures = { version = "0.3" }
+nanorand = { version = "0.7", default-features = false }
 nutype = { version = "0.5" }
 pin-project = { version = "1" }
+ulid = { version = "1.1", features = ["serde"] }
 
 # tracing
 tracing = { version = "0.1" }

@@ -1,13 +1,13 @@
 [package]
-name = "hex"
-version = "0.1.0"
 edition = "2021"
+name = "hex"
 publish = false
+version = "0.1.0"
 
 [dependencies]
 health = { path = "../health" }
 
-tokio = { workspace = true, features = [ "time" ] }
+tokio = { workspace = true, features = ["time"] }
 tracing.workspace = true
 
 [lints]

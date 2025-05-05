@@ -1,8 +1,8 @@
 [package]
-name = "belt"
-version = "0.1.0"
 edition = "2021"
+name = "belt"
 publish = false
+version = "0.1.0"
 
 [dependencies]
 bytes.workspace = true
