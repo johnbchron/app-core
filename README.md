@@ -1,10 +1,7 @@
 # app-core
 
 This repository contains the domain-independent crates shared by a few of my
-projects (
-[rambit](https://github.com/rambit-systems/rambit),
-[picturepro](https://github.com/picture-pro/mono),
-etc).
+projects ([rambit](https://github.com/rambit-systems/rambit), [picturepro](https://github.com/picture-pro/mono), etc).
 
 ## Crate Map
 ![Crate Graph](./media/crate-graph.svg)
