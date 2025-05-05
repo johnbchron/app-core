@@ -9,6 +9,9 @@ localFlake: { ... }: {
 
         # dependencies for local rust builds
         pkg-config openssl gcc
+
+        # tools
+        cargo-nextest
       ];
 
       motd = "\n  Welcome to the {2}app-core{reset} dev shell. Run {1}menu{reset} for commands.\n";
