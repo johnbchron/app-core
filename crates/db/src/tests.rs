@@ -181,40 +181,6 @@ mod generic_testing {
     ));
   }
 
-  // #[tokio::test]
-  // async fn test_fetch_model_by_unique_index_malformed<I: DbInstantiator>(
-  //   init: I,
-  // ) {
-  //   let model = TestModel {
-  //     id:    model::RecordId::new(),
-  //     name:  StrictSlug::new("test"),
-  //     owner: Ulid::new(),
-  //   };
-
-  //   let mock_store = MockStore::new();
-
-  //   // manually insert the index for a model that doesn't exist
-  //   mock_store.screw_with_internal_data().write().await.insert(
-  //     unique_index_base_key::<TestModel>("name")
-  //       .with_either(EitherSlug::Strict(StrictSlug::new("not_test"))),
-  //     Value::serialize(&model.id()).unwrap(),
-  //   );
-
-  //   let store = KeyValueStore::from_mock(mock_store);
-  //   let adapter = KvDatabaseAdapter::new(store);
-
-  //   let result: Result<Option<TestModel>, _> = adapter
-  //     .fetch_model_by_unique_index(
-  //       "name".to_string(),
-  //       EitherSlug::Strict(StrictSlug::new("not_test")),
-  //     )
-  //     .await;
-  //   assert!(matches!(
-  //     result,
-  //     Err(FetchModelByIndexError::IndexMalformed { .. })
-  //   ));
-  // }
-
   #[tokio::test]
   async fn test_fetch_model_by_index<I: DbInstantiator>() {
     let db = I::init();

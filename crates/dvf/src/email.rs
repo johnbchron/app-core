@@ -51,14 +51,19 @@ mod tests {
   use super::*;
 
   #[test]
-  fn basic_email_test() {
+  fn test_compliance_check() {
     let reasonable_email = "bob@example.com";
     let compliant_email = "main@[192.168.0.1]";
     assert!(validate_compliant_email_address(compliant_email));
     assert!(validate_compliant_email_address(reasonable_email));
-    #[cfg(feature = "reasonable-email")]
-    assert!(validate_reasonable_email_address(reasonable_email));
-    #[cfg(feature = "reasonable-email")]
+  }
+
+  #[test]
+  #[cfg(feature = "reasonable-email")]
+  fn test_reasonable_check() {
+    let reasonable_email = "bob@example.com";
+    let compliant_email = "main@[192.168.0.1]";
     assert!(!validate_reasonable_email_address(compliant_email));
+    assert!(validate_reasonable_email_address(reasonable_email));
   }
 }
