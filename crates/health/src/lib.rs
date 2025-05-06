@@ -27,18 +27,6 @@ pub trait HealthReporter: Send + Sync + 'static {
   async fn health_check(&self) -> ComponentHealth;
 }
 
-#[async_trait::async_trait]
-impl<T, I> HealthReporter for T
-where
-  T: std::ops::Deref<Target = I> + Send + Sync + 'static,
-  I: HealthReporter + ?Sized,
-{
-  fn name(&self) -> &'static str { self.deref().name() }
-  async fn health_check(&self) -> ComponentHealth {
-    self.deref().health_check().await
-  }
-}
-
 /// Describes a component that can provide a health report.
 #[async_trait::async_trait]
 pub trait HealthAware: HealthReporter + Send + Sync + 'static {
