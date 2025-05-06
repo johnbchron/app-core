@@ -7,7 +7,7 @@ pub use ulid::Ulid;
 // derive because of the `PhantomData` field; the derives assume that the `T`
 // generic also has to implement the trait we're deriving.
 
-/// A record ID for a `Model` implementer.
+/// A record ID for a based on a [`Ulid`].
 #[derive(Serialize, Deserialize)]
 #[serde(transparent)]
 pub struct RecordId<T>(Ulid, #[serde(skip)] PhantomData<T>);

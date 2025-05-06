@@ -15,7 +15,8 @@
 //! Other highlights include a zero-copy segment-based key encoding scheme, and
 //! optional automatic messagepack ser/de for values.
 //!
-//! `tikv` and `mock` are the only supported platforms at the moment.
+//! `tikv`, `redb`, and `mock` platforms exist, governed by their respective
+//! feature flags.
 
 mod key;
 #[cfg(feature = "mock")]

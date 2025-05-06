@@ -3,7 +3,7 @@
 //! This crate provides the fundamental types used for data validation all over
 //! Rambit. Types from this crate are meant to be used in the domain layer, and
 //! should replace all bare or primitive types used in domain models, e.g.
-//! [`EntityName`] over `String`.
+//! [`EntityName`] over [String].
 //!
 //! These types should also be used to maintain the validation barrier inside
 //! all business logic, e.g. returning a [`FileSize`] from the

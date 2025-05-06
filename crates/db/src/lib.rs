@@ -13,11 +13,6 @@
 //! for organizing the database, and for bridging the gap between raw data in
 //! the kv store and the model data.
 //!
-//! Admittedly, this is a little bit of a leaky abstraction. It
-//! makes use of the [`Model`](model::Model) trait, which ideally would not be
-//! involved at this level, since it's involved in the domain and the
-//! [`db`](crate) crate is not.
-//!
 //! # Errors
 //! Ideally, each method in [`Database`] should return a specific,
 //! concrete error. This is the case for all but
