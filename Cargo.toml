@@ -10,7 +10,7 @@ missing_docs = "deny"
 # strictly codegen
 async-trait = { version = "0.1" }
 serde = { version = "1", features = ["derive"] }
-thiserror = { version = "1" }
+thiserror = { version = "2" }
 
 # errors
 # miette = { version = "7", default-features = false, features = [ "derive" ] }
@@ -24,7 +24,7 @@ tokio-util = { version = "0.7" }
 bytes = { version = "1" }
 futures = { version = "0.3" }
 nanorand = { version = "0.7", default-features = false }
-nutype = { version = "0.5" }
+nutype = { version = "0.6" }
 pin-project = { version = "1" }
 ulid = { version = "1.1", features = ["serde"] }
 

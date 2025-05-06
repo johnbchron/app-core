@@ -12,7 +12,7 @@ artem = { version = "3", default-features = false }
 image = { version = "0.25", features = ["png"], default-features = false }
 
 quote = { version = "1" }
-syn = { version = "1", features = ["full"] }
+syn = { version = "2", features = ["full"] }
 
 [lib]
 proc-macro = true

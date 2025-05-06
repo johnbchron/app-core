@@ -16,7 +16,7 @@ async-trait.workspace = true
 bytes-stream = "0.0.3"
 futures.workspace = true
 miette.workspace = true
-object_store = { version = "0.10.1", features = ["aws"] }
+object_store = { version = "0.12", features = ["aws"] }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["fs"] }
 tracing.workspace = true
