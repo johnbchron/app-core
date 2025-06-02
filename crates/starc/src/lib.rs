@@ -1,3 +1,5 @@
+//! **St**atic or **A**tomically **R**eference **C**ounted
+//!
 //! Provides a smart pointer that can be either static or owned and ref-counted.
 
 use std::{
