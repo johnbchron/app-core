@@ -1,4 +1,4 @@
-//! Provides `Belt`, a byte streaming container.
+//! Provides [`Belt`], a byte streaming container.
 
 mod bottleneck;
 mod comp;
