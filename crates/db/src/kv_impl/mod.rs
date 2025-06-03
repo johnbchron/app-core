@@ -22,10 +22,7 @@ pub struct KvDatabaseAdapter(KeyValueStore);
 
 impl KvDatabaseAdapter {
   /// Creates a new [`KeyValueStore`] adapter.
-  pub fn new(kv_store: KeyValueStore) -> Self {
-    tracing::info!("creating new `KvDatabaseAdapter` instance");
-    Self(kv_store)
-  }
+  pub fn new(kv_store: KeyValueStore) -> Self { Self(kv_store) }
 }
 
 #[async_trait::async_trait]
