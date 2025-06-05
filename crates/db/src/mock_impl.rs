@@ -61,17 +61,19 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     let mut u_indices = self.0.u_indices.lock().await;
     for (u_index_name, u_index_getter) in M::UNIQUE_INDICES.iter() {
       let u_index = u_indices.entry(u_index_name.to_string()).or_default();
-      let u_index_value = u_index_getter(&model);
+      let u_index_values = u_index_getter(&model);
 
-      match u_index.entry(u_index_value.clone()) {
-        Entry::Occupied(_) => {
-          return Err(CreateModelError::UniqueIndexAlreadyExists {
-            index_name:  (*u_index_name).to_owned(),
-            index_value: u_index_value,
-          })
-        }
-        Entry::Vacant(vacant_entry) => {
-          vacant_entry.insert(model.id());
+      for u_index_value in u_index_values {
+        match u_index.entry(u_index_value.clone()) {
+          Entry::Occupied(_) => {
+            return Err(CreateModelError::UniqueIndexAlreadyExists {
+              index_name:  (*u_index_name).to_owned(),
+              index_value: u_index_value,
+            })
+          }
+          Entry::Vacant(vacant_entry) => {
+            vacant_entry.insert(model.id());
+          }
         }
       }
     }
@@ -79,9 +81,11 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     let mut indices = self.0.indices.lock().await;
     for (index_name, index_getter) in M::INDICES.iter() {
       let index = indices.entry(index_name.to_string()).or_default();
-      let index_value = index_getter(&model);
-      let index_ids_for_value = index.entry(index_value).or_default();
-      index_ids_for_value.push(model.id());
+      let index_values = index_getter(&model);
+      for index_value in index_values {
+        let index_ids_for_value = index.entry(index_value).or_default();
+        index_ids_for_value.push(model.id());
+      }
     }
 
     Ok(model)

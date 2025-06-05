@@ -11,7 +11,7 @@ pub use dvf::{RecordId, Ulid};
 use serde::{de::DeserializeOwned, Serialize};
 
 /// A function that returns a slug field value.
-pub type SlugFieldGetter<T> = fn(&T) -> EitherSlug;
+pub type SlugFieldGetter<T> = fn(&T) -> Vec<EitherSlug>;
 
 /// Represents a model in the database.
 pub trait Model:

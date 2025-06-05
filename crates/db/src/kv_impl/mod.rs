@@ -82,50 +82,59 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
 
     // insert the unique indexes
     for (u_index_name, u_index_fn) in M::UNIQUE_INDICES.iter() {
-      // calculate the key for the index
-      let u_index_key = unique_index_base_key::<M>(u_index_name)
-        .with_either(u_index_fn(&model));
+      let u_index_values = u_index_fn(&model);
 
-      // check if the index exists already
-      let (_txn, exists) = txn
-        .csm_exists(&u_index_key)
-        .await
-        .context("failed to check if unique index exists")
-        .map_err(CreateModelError::Db)?;
-      txn = _txn;
-      if exists {
-        txn
-          .to_rollback()
+      for u_index_value in u_index_values {
+        // calculate the key for the index
+        let u_index_key = unique_index_base_key::<M>(u_index_name)
+          .with_either(u_index_value.clone());
+
+        // check if the index exists already
+        // reassignment is weird
+        let (_txn, exists) = txn
+          .csm_exists(&u_index_key)
           .await
-          .map_err(CreateModelError::RetryableTransaction)?;
-        return Err(CreateModelError::UniqueIndexAlreadyExists {
-          index_name:  u_index_name.to_string(),
-          index_value: u_index_fn(&model),
-        });
-      }
+          .context("failed to check if unique index exists")
+          .map_err(CreateModelError::Db)?;
+        txn = _txn;
+        if exists {
+          txn
+            .to_rollback()
+            .await
+            .map_err(CreateModelError::RetryableTransaction)?;
+          return Err(CreateModelError::UniqueIndexAlreadyExists {
+            index_name:  u_index_name.to_string(),
+            index_value: u_index_value,
+          });
+        }
 
-      // insert the index
-      txn = txn
-        .csm_insert(&u_index_key, id_value.clone())
-        .await
-        .context("failed to insert unique index")
-        .map_err(CreateModelError::Db)?;
+        // insert the index
+        txn = txn
+          .csm_insert(&u_index_key, id_value.clone())
+          .await
+          .context("failed to insert unique index")
+          .map_err(CreateModelError::Db)?;
+      }
     }
 
     // insert the regular indexes
     for (index_name, index_fn) in M::INDICES.iter() {
-      // calculate the key for the index
-      // same as the unique index keys, but with the ID on the end
-      let index_key = index_base_key::<M>(index_name)
-        .with_either(index_fn(&model))
-        .with(StrictSlug::new(id_ulid));
+      let index_values = index_fn(&model);
 
-      // insert the index
-      txn = txn
-        .csm_insert(&index_key, id_value.clone())
-        .await
-        .context("failed to insert index")
-        .map_err(CreateModelError::Db)?;
+      for index_value in index_values {
+        // calculate the key for the index
+        // same as the unique index keys, but with the ID on the end
+        let index_key = index_base_key::<M>(index_name)
+          .with_either(index_value)
+          .with(StrictSlug::new(id_ulid));
+
+        // insert the index
+        txn = txn
+          .csm_insert(&index_key, id_value.clone())
+          .await
+          .context("failed to insert index")
+          .map_err(CreateModelError::Db)?;
+      }
     }
 
     txn
