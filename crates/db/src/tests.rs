@@ -16,12 +16,14 @@ struct TestModel {
 
 impl Model for TestModel {
   const TABLE_NAME: &'static str = "test_model";
-  const UNIQUE_INDICES: &'static [(&'static str, fn(&Self) -> EitherSlug)] =
-    &[("name", move |m| EitherSlug::Strict(m.name.clone()))];
+  const UNIQUE_INDICES: &'static [(
+    &'static str,
+    model::SlugFieldGetter<Self>,
+  )] = &[("name", move |m| vec![EitherSlug::Strict(m.name.clone())])];
   fn id(&self) -> TestModelRecordId { self.id }
   const INDICES: &'static [(&'static str, model::SlugFieldGetter<Self>)] =
     &[("owner", move |m| {
-      EitherSlug::Strict(StrictSlug::new(m.owner.to_string()))
+      vec![EitherSlug::Strict(StrictSlug::new(m.owner.to_string()))]
     })];
 }
 
