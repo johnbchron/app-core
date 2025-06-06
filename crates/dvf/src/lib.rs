@@ -17,7 +17,7 @@ mod names;
 mod record_id;
 mod secrets;
 
-pub use slugger;
+pub use slugger::*;
 
 pub use self::{
   compression::*, creds::*, email::*, files::*, names::*, record_id::*,

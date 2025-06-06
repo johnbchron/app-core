@@ -6,7 +6,7 @@
 
 use std::fmt::Debug;
 
-use dvf::slugger::EitherSlug;
+use dvf::EitherSlug;
 pub use dvf::{RecordId, Ulid};
 use serde::{de::DeserializeOwned, Serialize};
 
