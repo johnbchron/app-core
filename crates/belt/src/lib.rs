@@ -11,7 +11,7 @@ pub const DEFAULT_CHUNK_SIZE: NonZeroUsize =
   NonZeroUsize::new(32 * 1024).expect("DEFAULT_CHUNK_SIZE is zero");
 
 use std::{
-  io::Result,
+  io::{Cursor, Result},
   num::NonZeroUsize,
   pin::Pin,
   sync::{
@@ -58,6 +58,11 @@ pub struct Belt {
 }
 
 impl Belt {
+  /// Create a new [`Belt`] from a single [`Bytes`] chunk.
+  pub fn from_bytes(data: Bytes, max_chunk_size: Option<NonZeroUsize>) -> Self {
+    Self::from_async_buf_read(Cursor::new(data), max_chunk_size)
+  }
+
   /// Create a new [`Belt`] from an existing [`mpsc::Receiver`]`<Bytes>`.
   pub fn from_channel(
     receiver: mpsc::Receiver<Result<Bytes>>,
@@ -242,6 +247,21 @@ mod tests {
   use tokio::io::AsyncReadExt;
 
   use super::*;
+
+  #[tokio::test]
+  async fn test_belt_from_bytes() {
+    let bytes = Bytes::from("hello");
+    let mut belt = Belt::from_bytes(bytes, Some(3.try_into().unwrap()));
+
+    assert_eq!(
+      belt.next().await.transpose().unwrap(),
+      Some(Bytes::from("hel"))
+    );
+    assert_eq!(
+      belt.next().await.transpose().unwrap(),
+      Some(Bytes::from("lo"))
+    );
+  }
 
   #[tokio::test]
   async fn test_belt_from_channel() {
