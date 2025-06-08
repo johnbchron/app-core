@@ -42,6 +42,7 @@ pub struct MemoryStorageClient {
   storage: Arc<RwLock<HashMap<PathBuf, Bytes>>>,
 }
 
+#[allow(dead_code)]
 impl MemoryStorageClient {
   /// Create a new empty memory storage client
   pub fn new() -> Self {
