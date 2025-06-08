@@ -9,11 +9,17 @@ pub enum StorageCredentials {
   Local(LocalStorageCredentials),
   /// Storage credentials for R2 object storage.
   R2(R2StorageCredentials),
+  /// Storage credentials for in-memory storage.
+  Memory(MemoryStorageCredentials),
 }
 
 /// Storage credentials for local filesystem storage.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 pub struct LocalStorageCredentials(pub PathBuf);
+
+/// Storage credentials for in-memory storage.
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+pub struct MemoryStorageCredentials;
 
 /// Storage credentials for R2 object storage.
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]

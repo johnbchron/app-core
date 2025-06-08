@@ -1,7 +1,7 @@
 use std::{
   collections::HashMap,
   path::{Path, PathBuf},
-  sync::Arc,
+  sync::{Arc, LazyLock},
 };
 
 use belt::Belt;
@@ -11,6 +11,31 @@ use tokio::sync::RwLock;
 
 use super::{ReadError, StorageClientLike};
 use crate::WriteError;
+
+pub struct StaticMemoryStorageClient(
+  pub(crate) &'static LazyLock<MemoryStorageClient>,
+);
+
+#[async_trait::async_trait]
+impl StorageClientLike for StaticMemoryStorageClient {
+  async fn read(&self, input_path: &Path) -> Result<Belt, ReadError> {
+    self.0.read(input_path).await
+  }
+  async fn write(
+    &self,
+    path: &Path,
+    data: Belt,
+  ) -> Result<dvf::FileSize, WriteError> {
+    self.0.write(path, data).await
+  }
+}
+#[async_trait::async_trait]
+impl health::HealthReporter for StaticMemoryStorageClient {
+  fn name(&self) -> &'static str { self.0.name() }
+  async fn health_check(&self) -> health::ComponentHealth {
+    self.0.health_check().await
+  }
+}
 
 /// In-memory storage client using a hashmap with `Bytes` for efficient storage
 pub struct MemoryStorageClient {

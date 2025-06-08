@@ -8,14 +8,21 @@ pub mod temp;
 use std::{
   fmt,
   path::{Path, PathBuf},
-  sync::Arc,
+  sync::{Arc, LazyLock},
 };
 
 pub use belt;
 use belt::Belt;
 use hex::{health, Hexagonal};
 
-use self::{local::LocalStorageClient, s3_compat::S3CompatStorageClient};
+use self::{
+  local::LocalStorageClient,
+  memory::{MemoryStorageClient, StaticMemoryStorageClient},
+  s3_compat::S3CompatStorageClient,
+};
+
+static MEMORY_CLIENT: LazyLock<MemoryStorageClient> =
+  LazyLock::new(MemoryStorageClient::new);
 
 /// Trait that allows generating a dynamic client from storage credentials.
 #[async_trait::async_trait]
@@ -32,6 +39,9 @@ impl StorageClientGenerator for dvf::StorageCredentials {
     &self,
   ) -> miette::Result<Arc<dyn StorageClientLike + Send + Sync + 'static>> {
     match self {
+      Self::Memory(..) => {
+        Ok(Arc::new(StaticMemoryStorageClient(&MEMORY_CLIENT)))
+      }
       Self::Local(local_storage_creds) => Ok(Arc::new(
         LocalStorageClient::new(local_storage_creds.clone()).await?,
       )
