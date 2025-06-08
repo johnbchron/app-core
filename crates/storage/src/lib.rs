@@ -1,6 +1,7 @@
 //! Provides traits and implementations for storage clients.
 
 mod local;
+mod memory;
 mod s3_compat;
 pub mod temp;
 

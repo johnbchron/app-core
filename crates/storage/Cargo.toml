@@ -13,6 +13,7 @@ dvf = { path = "../dvf" }
 hex = { path = "../hex" }
 
 async-trait.workspace = true
+bytes.workspace = true
 bytes-stream = "0.0.3"
 futures.workspace = true
 miette.workspace = true
