@@ -22,7 +22,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures::{Stream, StreamExt};
+pub use futures::{Stream, StreamExt};
 use tokio::{io::AsyncBufRead, sync::mpsc};
 use tokio_util::io::ReaderStream;
 
