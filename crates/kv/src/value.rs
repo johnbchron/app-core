@@ -22,7 +22,7 @@ impl Value {
   pub fn deserialize<T: DeserializeOwned>(
     self,
   ) -> Result<T, rmp_serde::decode::Error> {
-    rmp_serde::from_read(self.0.as_slice())
+    rmp_serde::from_slice(self.0.as_slice())
   }
 }
 
