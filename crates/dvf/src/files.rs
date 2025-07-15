@@ -50,6 +50,7 @@ impl fmt::Display for Visibility {
 
 /// The size of a file.
 #[nutype::nutype(derive(
+  Copy,
   Clone,
   Serialize,
   Deserialize,
