@@ -55,37 +55,37 @@ impl From<tikv_client::Error> for KvError {
 }
 
 #[cfg(feature = "redb")]
-impl From<redb::TransactionError> for KvError {
-  fn from(error: redb::TransactionError) -> Self {
-    KvError::PlatformError(miette::Report::from_err(error))
-  }
-}
+mod redb_error_impl {
+  use super::KvError;
 
-#[cfg(feature = "redb")]
-impl From<redb::TableError> for KvError {
-  fn from(error: redb::TableError) -> Self {
-    KvError::PlatformError(miette::Report::from_err(error))
+  impl From<redb::TransactionError> for KvError {
+    fn from(error: redb::TransactionError) -> Self {
+      KvError::PlatformError(miette::Report::from_err(error))
+    }
   }
-}
 
-#[cfg(feature = "redb")]
-impl From<redb::StorageError> for KvError {
-  fn from(error: redb::StorageError) -> Self {
-    KvError::PlatformError(miette::Report::from_err(error))
+  impl From<redb::TableError> for KvError {
+    fn from(error: redb::TableError) -> Self {
+      KvError::PlatformError(miette::Report::from_err(error))
+    }
   }
-}
 
-#[cfg(feature = "redb")]
-impl From<redb::SavepointError> for KvError {
-  fn from(error: redb::SavepointError) -> Self {
-    KvError::PlatformError(miette::Report::from_err(error))
+  impl From<redb::StorageError> for KvError {
+    fn from(error: redb::StorageError) -> Self {
+      KvError::PlatformError(miette::Report::from_err(error))
+    }
   }
-}
 
-#[cfg(feature = "redb")]
-impl From<redb::CommitError> for KvError {
-  fn from(error: redb::CommitError) -> Self {
-    KvError::PlatformError(miette::Report::from_err(error))
+  impl From<redb::SavepointError> for KvError {
+    fn from(error: redb::SavepointError) -> Self {
+      KvError::PlatformError(miette::Report::from_err(error))
+    }
+  }
+
+  impl From<redb::CommitError> for KvError {
+    fn from(error: redb::CommitError) -> Self {
+      KvError::PlatformError(miette::Report::from_err(error))
+    }
   }
 }
 
