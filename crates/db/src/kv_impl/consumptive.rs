@@ -57,6 +57,33 @@ pub trait ConsumptiveTransaction:
 
     Ok((self, scan))
   }
+
+  async fn csm_put(mut self, key: &Key, value: Value) -> Result<Self> {
+    if let Err(e) = self.put(key, value).await {
+      return Err(
+        self
+          .to_rollback_with_error(e.into(), "failed to put value")
+          .await,
+      );
+    }
+
+    Ok(self)
+  }
+
+  async fn csm_delete(mut self, key: &Key) -> Result<(Self, bool)> {
+    let existed = match self.delete(key).await {
+      Ok(v) => v,
+      Err(e) => {
+        return Err(
+          self
+            .to_rollback_with_error(e.into(), "failed to get value")
+            .await,
+        );
+      }
+    };
+
+    Ok((self, existed))
+  }
 }
 
 impl<T> ConsumptiveTransaction for T where
