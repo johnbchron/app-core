@@ -107,6 +107,28 @@ impl<M: model::Model> Database<M> {
   pub async fn enumerate_models(&self) -> Result<Vec<M>> {
     self.inner.enumerate_models().await
   }
+  /// Updates an existing model with the provided changes.
+  ///
+  /// The model must exist in the database. This method will update the model
+  /// and refresh any affected indices.
+  pub async fn patch_model(
+    &self,
+    id: model::RecordId<M>,
+    model: M,
+  ) -> Result<M, PatchModelError> {
+    self.inner.patch_model(id, model).await
+  }
+  /// Deletes a model by its ID.
+  ///
+  /// This will remove the model from the database and clean up all associated
+  /// indices. Returns `true` if the model was deleted, `false` if it didn't
+  /// exist.
+  pub async fn delete_model(
+    &self,
+    id: model::RecordId<M>,
+  ) -> Result<bool, DeleteModelError> {
+    self.inner.delete_model(id).await
+  }
 }
 
 #[async_trait::async_trait]

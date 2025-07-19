@@ -118,7 +118,85 @@ pub enum FetchModelByIndexError {
   RetryableTransaction(miette::Report),
   /// A database error occurred.
   ///
-  /// THis is an unknown error. Something we didn't expect to fail failed.
+  /// This is an unknown error. Something we didn't expect to fail failed.
+  #[error("db error: {0}")]
+  #[diagnostic_source]
+  Db(miette::Report),
+}
+
+/// Errors that can occur when patching a model.
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+pub enum PatchModelError {
+  /// The model with the specified ID was not found.
+  ///
+  /// This means we tried to update a model that doesn't exist in the database.
+  /// The caller should check if the model exists before attempting to patch
+  /// it.
+  #[error("model with ID not found")]
+  ModelNotFound,
+  /// An index with that value already exists.
+  ///
+  /// This is a constraint violation that occurs when the patch would create
+  /// a duplicate unique index. One of the indices, listed in the model's
+  /// [`UNIQUE_INDICES`](model::Model::UNIQUE_INDICES) constant, already
+  /// exists in the database with the new value.
+  #[error("index {index_name:?} with value \"{index_value}\" already exists")]
+  UniqueIndexAlreadyExists {
+    /// The name of the index.
+    index_name:  String,
+    /// The value of the index.
+    index_value: EitherSlug,
+  },
+  /// An error occurred while deserializing or serializing the model.
+  ///
+  /// This is a bug. Since we're serializing and deserializing to
+  /// messagepack, it's most likely that this results from an improper
+  /// deserialization caused by trying to deserialize to the wrong type.
+  #[error("failed to deserialize or serialize model")]
+  #[diagnostic_source]
+  Serde(miette::Report),
+  /// A retryable transaction error occurred.
+  ///
+  /// This is not a bug, but a transient error. It should be retried.
+  #[error("retryable transaction error: {0}")]
+  #[diagnostic_source]
+  RetryableTransaction(miette::Report),
+  /// A database error occurred.
+  ///
+  /// This is an unknown error. Something we didn't expect to fail failed.
+  #[error("db error: {0}")]
+  #[diagnostic_source]
+  Db(miette::Report),
+}
+
+/// Errors that can occur when deleting a model.
+#[derive(Debug, thiserror::Error, miette::Diagnostic)]
+pub enum DeleteModelError {
+  /// An error occurred while cleaning up indices.
+  ///
+  /// This is a consistency bug. The model was found and deleted, but we
+  /// failed to clean up one or more of its indices. This could leave
+  /// dangling index references in the database.
+  #[error("failed to clean up indices for deleted model")]
+  #[diagnostic_source]
+  FailedToCleanupIndices(miette::Report),
+  /// An error occurred while deserializing or serializing the model.
+  ///
+  /// This is a bug. Since we're serializing and deserializing to
+  /// messagepack, it's most likely that this results from an improper
+  /// deserialization caused by trying to deserialize to the wrong type.
+  #[error("failed to deserialize or serialize model")]
+  #[diagnostic_source]
+  Serde(miette::Report),
+  /// A retryable transaction error occurred.
+  ///
+  /// This is not a bug, but a transient error. It should be retried.
+  #[error("retryable transaction error: {0}")]
+  #[diagnostic_source]
+  RetryableTransaction(miette::Report),
+  /// A database error occurred.
+  ///
+  /// This is an unknown error. Something we didn't expect to fail failed.
   #[error("db error: {0}")]
   #[diagnostic_source]
   Db(miette::Report),
