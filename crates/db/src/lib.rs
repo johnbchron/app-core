@@ -123,7 +123,7 @@ impl<M: model::Model> Database<M> {
   /// This will remove the model from the database and clean up all associated
   /// indices. Returns `true` if the model was deleted, `false` if it didn't
   /// exist.
-  async fn delete_model(
+  pub async fn delete_model(
     &self,
     id: model::RecordId<M>,
   ) -> Result<bool, DeleteModelError> {
