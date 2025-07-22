@@ -30,6 +30,9 @@ tokio = { workspace = true, features = ["full"] }
 
 [features]
 default = []
+
 mock = ["dep:tokio"]
 redb = ["dep:redb"]
 tikv = ["dep:tikv-client"]
+
+no-field-names = []

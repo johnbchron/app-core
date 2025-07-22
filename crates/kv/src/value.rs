@@ -16,7 +16,11 @@ impl Value {
   pub fn serialize<T: Serialize>(
     value: &T,
   ) -> Result<Self, rmp_serde::encode::Error> {
-    Ok(Self(rmp_serde::to_vec_named(value)?))
+    #[cfg(not(feature = "no-field-names"))]
+    let bytes = rmp_serde::to_vec_named(value)?;
+    #[cfg(feature = "no-field-names")]
+    let bytes = rmp_serde::to_vec(value)?;
+    Ok(Self(bytes))
   }
   /// Deserialize a value from a [`Value`], using MessagePack.
   pub fn deserialize<T: DeserializeOwned>(
