@@ -170,7 +170,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .map_err(FetchModelError::RetryableTransaction)?;
 
     model_value
-      .map(|value| Value::deserialize(dbg!(value)))
+      .map(|value| Value::deserialize(value))
       .transpose()
       .into_diagnostic()
       .context("failed to deserialize model")
