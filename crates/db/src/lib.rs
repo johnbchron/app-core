@@ -81,12 +81,12 @@ impl<M: model::Model> Database<M> {
   /// [`UNIQUE_INDICES`](model::Model::UNIQUE_INDICES) constant.
   pub async fn fetch_model_by_unique_index(
     &self,
-    index_name: String,
+    index_selector: M::UniqueIndexSelector,
     index_value: EitherSlug,
   ) -> Result<Option<M>, FetchModelByIndexError> {
     self
       .inner
-      .fetch_model_by_unique_index(index_name, index_value)
+      .fetch_model_by_unique_index(index_selector, index_value)
       .await
   }
   /// Fetches a model by an index.
@@ -95,12 +95,12 @@ impl<M: model::Model> Database<M> {
   /// [`INDICES`](model::Model::INDICES) constant.
   pub async fn fetch_model_by_index(
     &self,
-    index_name: String,
+    index_selector: M::IndexSelector,
     index_value: EitherSlug,
   ) -> Result<Vec<M>, FetchModelByIndexError> {
     self
       .inner
-      .fetch_models_by_index(index_name, index_value)
+      .fetch_models_by_index(index_selector, index_value)
       .await
   }
   /// Produces a list of all model IDs.

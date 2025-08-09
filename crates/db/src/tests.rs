@@ -1,3 +1,5 @@
+use std::fmt;
+
 use kv::*;
 use model::Model;
 use serde::{Deserialize, Serialize};
@@ -14,17 +16,51 @@ struct TestModel {
   owner: Ulid,
 }
 
+#[derive(Debug, Clone, Copy)]
+enum TestModelUniqueIndexSelector {
+  Name,
+}
+
+impl fmt::Display for TestModelUniqueIndexSelector {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      TestModelUniqueIndexSelector::Name => write!(f, "name"),
+    }
+  }
+}
+
+#[derive(Debug, Clone, Copy)]
+enum TestModelIndexSelector {
+  Owner,
+}
+
+impl fmt::Display for TestModelIndexSelector {
+  fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    match self {
+      TestModelIndexSelector::Owner => write!(f, "owner"),
+    }
+  }
+}
+
 impl Model for TestModel {
   const TABLE_NAME: &'static str = "test_model";
-  const UNIQUE_INDICES: &'static [(
-    &'static str,
-    model::SlugFieldGetter<Self>,
-  )] = &[("name", move |m| vec![EitherSlug::Strict(m.name.clone())])];
   fn id(&self) -> TestModelRecordId { self.id }
-  const INDICES: &'static [(&'static str, model::SlugFieldGetter<Self>)] =
-    &[("owner", move |m| {
-      vec![EitherSlug::Strict(StrictSlug::new(m.owner.to_string()))]
-    })];
+
+  type UniqueIndexSelector = TestModelUniqueIndexSelector;
+  const UNIQUE_INDICES: &'static [(
+    Self::UniqueIndexSelector,
+    model::SlugFieldGetter<Self>,
+  )] = &[(TestModelUniqueIndexSelector::Name, move |m| {
+    vec![EitherSlug::Strict(m.name.clone())]
+  })];
+
+  type IndexSelector = TestModelIndexSelector;
+  const INDICES: &'static [(
+    Self::IndexSelector,
+    model::SlugFieldGetter<Self>,
+  )] = &[(TestModelIndexSelector::Owner, move |m| {
+    vec![EitherSlug::Strict(StrictSlug::new(m.owner.to_string()))]
+  })];
 }
 
 trait DbInstantiator {
@@ -54,7 +90,10 @@ mod generic_testing {
   use super::{
     DbInstantiator, KvMockedInstantiator, MockInstantiator, TestModel,
   };
-  use crate::{CreateModelError, FetchModelByIndexError};
+  use crate::{
+    tests::{TestModelIndexSelector, TestModelUniqueIndexSelector},
+    CreateModelError,
+  };
 
   #[tokio::test]
   async fn test_create_model<I: DbInstantiator>() {
@@ -88,7 +127,7 @@ mod generic_testing {
 
     let fetched_model = db
       .fetch_model_by_unique_index(
-        "name".to_string(),
+        TestModelUniqueIndexSelector::Name,
         EitherSlug::Strict(model.name.clone()),
       )
       .await
@@ -149,38 +188,12 @@ mod generic_testing {
 
     let fetched_model: Option<TestModel> = db
       .fetch_model_by_unique_index(
-        "name".to_string(),
+        TestModelUniqueIndexSelector::Name,
         EitherSlug::Strict(StrictSlug::new("not_test")),
       )
       .await
       .unwrap();
     assert!(fetched_model.is_none());
-  }
-
-  #[tokio::test]
-  async fn test_fetch_model_by_unique_index_does_not_exist<
-    I: DbInstantiator,
-  >() {
-    let db = I::init();
-
-    let model = TestModel {
-      id:    model::RecordId::new(),
-      name:  StrictSlug::new("test"),
-      owner: Ulid::new(),
-    };
-
-    db.create_model(model.clone()).await.unwrap();
-
-    let result: Result<Option<TestModel>, _> = db
-      .fetch_model_by_unique_index(
-        "not_name".to_string(),
-        EitherSlug::Strict(StrictSlug::new("test")),
-      )
-      .await;
-    assert!(matches!(
-      result,
-      Err(FetchModelByIndexError::IndexDoesNotExistOnModel { .. })
-    ));
   }
 
   #[tokio::test]
@@ -211,7 +224,7 @@ mod generic_testing {
 
     let fetched_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner)),
       )
       .await
@@ -223,7 +236,7 @@ mod generic_testing {
 
     let fetched_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(second_owner)),
       )
       .await
@@ -391,7 +404,7 @@ mod generic_testing {
     // Verify the model can be found by the original owner index
     let found_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
       .await
@@ -413,7 +426,7 @@ mod generic_testing {
     // Verify the old index no longer contains the model
     let old_index_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
       .await
@@ -423,7 +436,7 @@ mod generic_testing {
     // Verify the new index contains the updated model
     let new_index_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner2.to_string())),
       )
       .await
@@ -434,7 +447,7 @@ mod generic_testing {
     // Verify unique index is also updated
     let found_by_old_name = db
       .fetch_model_by_unique_index(
-        "name".to_string(),
+        TestModelUniqueIndexSelector::Name,
         EitherSlug::Strict(model.name.clone()),
       )
       .await
@@ -443,7 +456,7 @@ mod generic_testing {
 
     let found_by_new_name = db
       .fetch_model_by_unique_index(
-        "name".to_string(),
+        TestModelUniqueIndexSelector::Name,
         EitherSlug::Strict(updated_model.name.clone()),
       )
       .await
@@ -507,7 +520,7 @@ mod generic_testing {
     // Verify both models are in the index
     let models_by_owner = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
@@ -521,7 +534,7 @@ mod generic_testing {
     // Verify the index is updated
     let remaining_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
@@ -533,7 +546,7 @@ mod generic_testing {
     // Verify unique index is also cleaned up
     let found_by_name = db
       .fetch_model_by_unique_index(
-        "name".to_string(),
+        TestModelUniqueIndexSelector::Name,
         EitherSlug::Strict(model1.name.clone()),
       )
       .await
@@ -543,7 +556,7 @@ mod generic_testing {
     // But model2 should still be findable by its unique index
     let found_model2 = db
       .fetch_model_by_unique_index(
-        "name".to_string(),
+        TestModelUniqueIndexSelector::Name,
         EitherSlug::Strict(model2.name.clone()),
       )
       .await
@@ -569,7 +582,7 @@ mod generic_testing {
     // Verify the model is in the index
     let models_by_owner = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
@@ -583,7 +596,7 @@ mod generic_testing {
     // Verify the index entry is empty (should return empty vec, not error)
     let remaining_models = db
       .fetch_model_by_index(
-        "owner".to_string(),
+        TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await

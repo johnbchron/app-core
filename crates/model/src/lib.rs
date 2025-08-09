@@ -4,7 +4,7 @@
 //! data model. It provides the table name, unique indices, and the ID of the
 //! model.
 
-use std::fmt::Debug;
+use std::fmt::{Debug, Display};
 
 use dvf::EitherSlug;
 pub use dvf::{RecordId, Ulid};
@@ -20,17 +20,32 @@ pub trait Model:
   /// The table name in the database.
   const TABLE_NAME: &'static str;
 
+  /// The item serving as the model unique index selector.
+  type UniqueIndexSelector: Display
+    + Debug
+    + Clone
+    + Copy
+    + Send
+    + Sync
+    + 'static;
+
   /// The model's unique indices.
   ///
   /// An array of tuples containing the index name and a function that returns
   /// the index value. The produced value must be unique for each record.
-  const UNIQUE_INDICES: &'static [(&'static str, SlugFieldGetter<Self>)];
+  const UNIQUE_INDICES: &'static [(
+    Self::UniqueIndexSelector,
+    SlugFieldGetter<Self>,
+  )];
+
+  /// The item serving as the model index selector.
+  type IndexSelector: Display + Debug + Clone + Copy + Send + Sync + 'static;
 
   /// The model's indices.
   ///
   /// An array of tuples containing the index name and a function that returns
   /// the index value.
-  const INDICES: &'static [(&'static str, SlugFieldGetter<Self>)];
+  const INDICES: &'static [(Self::IndexSelector, SlugFieldGetter<Self>)];
 
   /// Returns the model's ID.
   fn id(&self) -> dvf::RecordId<Self>;

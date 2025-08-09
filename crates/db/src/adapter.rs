@@ -24,7 +24,7 @@ pub(crate) trait DatabaseAdapter<M: model::Model>: Hexagonal {
   /// [`UNIQUE_INDICES`](model::Model::UNIQUE_INDICES) constant.
   async fn fetch_model_by_unique_index(
     &self,
-    index_name: String,
+    index_selector: M::UniqueIndexSelector,
     index_value: EitherSlug,
   ) -> Result<Option<M>, FetchModelByIndexError>;
 
@@ -34,7 +34,7 @@ pub(crate) trait DatabaseAdapter<M: model::Model>: Hexagonal {
   /// [`INDICES`](model::Model::INDICES) constant.
   async fn fetch_models_by_index(
     &self,
-    index_name: String,
+    index_selector: M::IndexSelector,
     index_value: EitherSlug,
   ) -> Result<Vec<M>, FetchModelByIndexError>;
 

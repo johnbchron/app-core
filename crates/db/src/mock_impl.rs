@@ -60,16 +60,16 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     }
 
     let mut u_indices = self.0.u_indices.lock().await;
-    for (u_index_name, u_index_getter) in M::UNIQUE_INDICES.iter() {
-      let u_index = u_indices.entry(u_index_name.to_string()).or_default();
+    for (u_index_selector, u_index_getter) in M::UNIQUE_INDICES.iter() {
+      let u_index = u_indices.entry(u_index_selector.to_string()).or_default();
       let u_index_values = u_index_getter(&model);
 
       for u_index_value in u_index_values {
         match u_index.entry(u_index_value.clone()) {
           Entry::Occupied(_) => {
             return Err(CreateModelError::UniqueIndexAlreadyExists {
-              index_name:  (*u_index_name).to_owned(),
-              index_value: u_index_value,
+              index_selector: u_index_selector.to_string(),
+              index_value:    u_index_value,
             })
           }
           Entry::Vacant(vacant_entry) => {
@@ -80,8 +80,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     }
 
     let mut indices = self.0.indices.lock().await;
-    for (index_name, index_getter) in M::INDICES.iter() {
-      let index = indices.entry(index_name.to_string()).or_default();
+    for (index_selector, index_getter) in M::INDICES.iter() {
+      let index = indices.entry(index_selector.to_string()).or_default();
       let index_values = index_getter(&model);
       for index_value in index_values {
         let index_ids_for_value = index.entry(index_value).or_default();
@@ -101,17 +101,11 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
 
   async fn fetch_model_by_unique_index(
     &self,
-    index_name: String,
+    index_selector: M::UniqueIndexSelector,
     index_value: EitherSlug,
   ) -> Result<Option<M>, FetchModelByIndexError> {
-    if !M::UNIQUE_INDICES.iter().any(|i| i.0 == index_name) {
-      return Err(FetchModelByIndexError::IndexDoesNotExistOnModel {
-        index_name: index_name.clone(),
-      });
-    }
-
     let mut u_indices = self.0.u_indices.lock().await;
-    let u_index = u_indices.entry(index_name.clone()).or_default();
+    let u_index = u_indices.entry(index_selector.to_string()).or_default();
 
     let id = u_index.get(&index_value);
     if let Some(id) = id {
@@ -123,17 +117,11 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
 
   async fn fetch_models_by_index(
     &self,
-    index_name: String,
+    index_selector: M::IndexSelector,
     index_value: EitherSlug,
   ) -> Result<Vec<M>, FetchModelByIndexError> {
-    if !M::INDICES.iter().any(|i| i.0 == index_name) {
-      return Err(FetchModelByIndexError::IndexDoesNotExistOnModel {
-        index_name: index_name.clone(),
-      });
-    }
-
     let mut indices = self.0.indices.lock().await;
-    let index = indices.entry(index_name.clone()).or_default();
+    let index = indices.entry(index_selector.to_string()).or_default();
 
     let ids = index.get(&index_value).cloned().unwrap_or_default();
     let mut models = Vec::with_capacity(ids.len());
@@ -164,8 +152,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
 
     // Check unique index constraints for the new model
     let mut u_indices = self.0.u_indices.lock().await;
-    for (u_index_name, u_index_getter) in M::UNIQUE_INDICES.iter() {
-      let u_index = u_indices.entry(u_index_name.to_string()).or_default();
+    for (u_index_selector, u_index_getter) in M::UNIQUE_INDICES.iter() {
+      let u_index = u_indices.entry(u_index_selector.to_string()).or_default();
       let u_index_values = u_index_getter(&model);
 
       for u_index_value in u_index_values {
@@ -175,8 +163,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
             // constraint violation
             if *occupied_entry.get() != id {
               return Err(PatchModelError::UniqueIndexAlreadyExists {
-                index_name:  (*u_index_name).to_owned(),
-                index_value: u_index_value,
+                index_selector: u_index_selector.to_string(),
+                index_value:    u_index_value,
               });
             }
             // If it points to the same model, we're updating with the same
@@ -197,8 +185,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     };
 
     // Remove old unique indices
-    for (u_index_name, u_index_getter) in M::UNIQUE_INDICES.iter() {
-      let u_index = u_indices.entry(u_index_name.to_string()).or_default();
+    for (u_index_selector, u_index_getter) in M::UNIQUE_INDICES.iter() {
+      let u_index = u_indices.entry(u_index_selector.to_string()).or_default();
       let old_u_index_values = u_index_getter(&old_model);
       for old_u_index_value in old_u_index_values {
         u_index.remove(&old_u_index_value);
@@ -206,8 +194,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     }
 
     // Add new unique indices
-    for (u_index_name, u_index_getter) in M::UNIQUE_INDICES.iter() {
-      let u_index = u_indices.entry(u_index_name.to_string()).or_default();
+    for (u_index_selector, u_index_getter) in M::UNIQUE_INDICES.iter() {
+      let u_index = u_indices.entry(u_index_selector.to_string()).or_default();
       let new_u_index_values = u_index_getter(&model);
       for new_u_index_value in new_u_index_values {
         u_index.insert(new_u_index_value, id);
@@ -218,8 +206,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     let mut indices = self.0.indices.lock().await;
 
     // Remove old indices
-    for (index_name, index_getter) in M::INDICES.iter() {
-      let index = indices.entry(index_name.to_string()).or_default();
+    for (index_selector, index_getter) in M::INDICES.iter() {
+      let index = indices.entry(index_selector.to_string()).or_default();
       let old_index_values = index_getter(&old_model);
       for old_index_value in old_index_values {
         if let Some(index_ids) = index.get_mut(&old_index_value) {
@@ -232,8 +220,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     }
 
     // Add new indices
-    for (index_name, index_getter) in M::INDICES.iter() {
-      let index = indices.entry(index_name.to_string()).or_default();
+    for (index_selector, index_getter) in M::INDICES.iter() {
+      let index = indices.entry(index_selector.to_string()).or_default();
       let new_index_values = index_getter(&model);
       for new_index_value in new_index_values {
         let index_ids_for_value = index.entry(new_index_value).or_default();
@@ -274,8 +262,9 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     // Clean up unique indices
     {
       let mut u_indices = self.0.u_indices.lock().await;
-      for (u_index_name, u_index_getter) in M::UNIQUE_INDICES.iter() {
-        let u_index = u_indices.entry(u_index_name.to_string()).or_default();
+      for (u_index_selector, u_index_getter) in M::UNIQUE_INDICES.iter() {
+        let u_index =
+          u_indices.entry(u_index_selector.to_string()).or_default();
         let u_index_values = u_index_getter(&model_to_delete);
         for u_index_value in u_index_values {
           u_index.remove(&u_index_value);
@@ -286,8 +275,8 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     // Clean up regular indices
     {
       let mut indices = self.0.indices.lock().await;
-      for (index_name, index_getter) in M::INDICES.iter() {
-        let index = indices.entry(index_name.to_string()).or_default();
+      for (index_selector, index_getter) in M::INDICES.iter() {
+        let index = indices.entry(index_selector.to_string()).or_default();
         let index_values = index_getter(&model_to_delete);
         for index_value in index_values {
           if let Some(index_ids) = index.get_mut(&index_value) {

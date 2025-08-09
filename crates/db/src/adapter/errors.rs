@@ -16,12 +16,14 @@ pub enum CreateModelError {
   /// means that one of the indices, listed in the model's
   /// [`UNIQUE_INDICES`](model::Model::UNIQUE_INDICES) constant, already
   /// exists in the database.
-  #[error("index {index_name:?} with value \"{index_value}\" already exists")]
+  #[error(
+    "index {index_selector:?} with value \"{index_value}\" already exists"
+  )]
   UniqueIndexAlreadyExists {
-    /// The name of the index.
-    index_name:  String,
+    /// The index selector.
+    index_selector: String,
     /// The value of the index.
-    index_value: EitherSlug,
+    index_value:    EitherSlug,
   },
   /// An error occurred while deserializing or serializing the model.
   ///
@@ -73,27 +75,17 @@ pub enum FetchModelError {
 /// Errors that can occur when fetching a model by index.
 #[derive(Debug, thiserror::Error, miette::Diagnostic)]
 pub enum FetchModelByIndexError {
-  /// The index does not exist.
-  ///
-  /// This is a usage bug. We should only be fetching by indices that are
-  /// defined in the model's [`UNIQUE_INDICES`](model::Model::UNIQUE_INDICES)
-  /// constant.
-  #[error("index {index_name:?} does not exist")]
-  IndexDoesNotExistOnModel {
-    /// The name of the index.
-    index_name: String,
-  },
   /// The index is malformed.
   ///
   /// This means that the index exists and points to an ID, but the model
   /// with that ID does not exist. This is a bug, because we should be
   /// cleaning up old indices when models are deleted.
-  #[error("index {index_name:?} is malformed")]
+  #[error("index {index_selector:?} is malformed")]
   IndexMalformed {
-    /// The name of the index.
-    index_name:  String,
+    /// The index selector.
+    index_selector: String,
     /// The value of the index.
-    index_value: EitherSlug,
+    index_value:    EitherSlug,
   },
   /// An error occurred while fetching the indexed model.
   ///
@@ -140,12 +132,14 @@ pub enum PatchModelError {
   /// a duplicate unique index. One of the indices, listed in the model's
   /// [`UNIQUE_INDICES`](model::Model::UNIQUE_INDICES) constant, already
   /// exists in the database with the new value.
-  #[error("index {index_name:?} with value \"{index_value}\" already exists")]
+  #[error(
+    "index {index_selector:?} with value \"{index_value}\" already exists"
+  )]
   UniqueIndexAlreadyExists {
     /// The name of the index.
-    index_name:  String,
+    index_selector: String,
     /// The value of the index.
-    index_value: EitherSlug,
+    index_value:    EitherSlug,
   },
   /// An error occurred while deserializing or serializing the model.
   ///

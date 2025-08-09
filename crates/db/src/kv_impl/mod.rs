@@ -33,7 +33,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
 
     // the model itself will be stored under [model_name]:[id] -> model
     // and each index will be stored under
-    // [model_name]_index_[index_name]:[index_value] -> [id]
+    // [model_name]_index_[index_selector]:[index_value] -> [id]
 
     // calculate the key for the model
     let model_key = model_base_key::<M>(&model.id());
@@ -81,12 +81,12 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .map_err(CreateModelError::Db)?;
 
     // insert the unique indexes
-    for (u_index_name, u_index_fn) in M::UNIQUE_INDICES.iter() {
+    for (u_index_selector, u_index_fn) in M::UNIQUE_INDICES.iter() {
       let u_index_values = u_index_fn(&model);
 
       for u_index_value in u_index_values {
         // calculate the key for the index
-        let u_index_key = unique_index_base_key::<M>(u_index_name)
+        let u_index_key = unique_index_base_key::<M>(*u_index_selector)
           .with_either(u_index_value.clone());
 
         // check if the index exists already
@@ -103,8 +103,8 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
             .await
             .map_err(CreateModelError::RetryableTransaction)?;
           return Err(CreateModelError::UniqueIndexAlreadyExists {
-            index_name:  u_index_name.to_string(),
-            index_value: u_index_value,
+            index_selector: u_index_selector.to_string(),
+            index_value:    u_index_value,
           });
         }
 
@@ -118,13 +118,13 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
     }
 
     // insert the regular indexes
-    for (index_name, index_fn) in M::INDICES.iter() {
+    for (index_selector, index_fn) in M::INDICES.iter() {
       let index_values = index_fn(&model);
 
       for index_value in index_values {
         // calculate the key for the index
         // same as the unique index keys, but with the ID on the end
-        let index_key = index_base_key::<M>(index_name)
+        let index_key = index_base_key::<M>(*index_selector)
           .with_either(index_value)
           .with(StrictSlug::new(id_ulid));
 
@@ -184,22 +184,13 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
   #[instrument(skip(self), fields(table = M::TABLE_NAME))]
   async fn fetch_model_by_unique_index(
     &self,
-    index_name: String,
+    index_selector: M::UniqueIndexSelector,
     index_value: EitherSlug,
   ) -> Result<Option<M>, FetchModelByIndexError> {
     tracing::debug!("fetching model by unique index");
 
-    if !M::UNIQUE_INDICES
-      .iter()
-      .any(|(name, _)| name == &index_name)
-    {
-      return Err(FetchModelByIndexError::IndexDoesNotExistOnModel {
-        index_name,
-      });
-    }
-
-    let index_key =
-      unique_index_base_key::<M>(&index_name).with_either(index_value.clone());
+    let index_key = unique_index_base_key::<M>(index_selector)
+      .with_either(index_value.clone());
 
     let txn = self
       .0
@@ -238,7 +229,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       Some(model) => model,
       None => {
         return Err(FetchModelByIndexError::IndexMalformed {
-          index_name,
+          index_selector: index_selector.to_string(),
           index_value,
         });
       }
@@ -250,15 +241,15 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
   #[instrument(skip(self), fields(table = M::TABLE_NAME))]
   async fn fetch_models_by_index(
     &self,
-    index_name: String,
+    index_selector: M::IndexSelector,
     index_value: EitherSlug,
   ) -> Result<Vec<M>, FetchModelByIndexError> {
     tracing::debug!("fetching model by index");
 
-    let first_key = index_base_key::<M>(&index_name)
+    let first_key = index_base_key::<M>(index_selector)
       .with_either(index_value.clone())
       .with(StrictSlug::new(model::RecordId::<M>::MIN().to_string()));
-    let last_key = index_base_key::<M>(&index_name)
+    let last_key = index_base_key::<M>(index_selector)
       .with_either(index_value)
       .with(StrictSlug::new(model::RecordId::<M>::MAX().to_string()));
 
@@ -414,14 +405,14 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .map_err(PatchModelError::Db)?;
 
     // handle unique index updates
-    for (u_index_name, u_index_fn) in M::UNIQUE_INDICES.iter() {
+    for (u_index_selector, u_index_fn) in M::UNIQUE_INDICES.iter() {
       let old_u_index_values = u_index_fn(&existing_model);
       let new_u_index_values = u_index_fn(&model);
 
       // remove old unique indices that are no longer present
       for old_value in &old_u_index_values {
         if !new_u_index_values.contains(old_value) {
-          let old_u_index_key = unique_index_base_key::<M>(u_index_name)
+          let old_u_index_key = unique_index_base_key::<M>(*u_index_selector)
             .with_either(old_value.clone());
 
           (txn, _) = txn
@@ -435,7 +426,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       // add new unique indices
       for new_value in &new_u_index_values {
         if !old_u_index_values.contains(new_value) {
-          let new_u_index_key = unique_index_base_key::<M>(u_index_name)
+          let new_u_index_key = unique_index_base_key::<M>(*u_index_selector)
             .with_either(new_value.clone());
 
           // check if the new index value already exists
@@ -452,8 +443,8 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
               .await
               .map_err(PatchModelError::RetryableTransaction)?;
             return Err(PatchModelError::UniqueIndexAlreadyExists {
-              index_name:  u_index_name.to_string(),
-              index_value: new_value.clone(),
+              index_selector: u_index_selector.to_string(),
+              index_value:    new_value.clone(),
             });
           }
 
@@ -468,14 +459,14 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
     }
 
     // handle regular index updates
-    for (index_name, index_fn) in M::INDICES.iter() {
+    for (index_selector, index_fn) in M::INDICES.iter() {
       let old_index_values = index_fn(&existing_model);
       let new_index_values = index_fn(&model);
 
       // remove old indices that are no longer present
       for old_value in &old_index_values {
         if !new_index_values.contains(old_value) {
-          let old_index_key = index_base_key::<M>(index_name)
+          let old_index_key = index_base_key::<M>(*index_selector)
             .with_either(old_value.clone())
             .with(StrictSlug::new(id_ulid));
 
@@ -490,7 +481,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       // add new indices
       for new_value in &new_index_values {
         if !old_index_values.contains(new_value) {
-          let new_index_key = index_base_key::<M>(index_name)
+          let new_index_key = index_base_key::<M>(*index_selector)
             .with_either(new_value.clone())
             .with(StrictSlug::new(id_ulid));
 
@@ -559,12 +550,12 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .map_err(DeleteModelError::Db)?;
 
     // cleanup unique indices
-    for (u_index_name, u_index_fn) in M::UNIQUE_INDICES.iter() {
+    for (u_index_selector, u_index_fn) in M::UNIQUE_INDICES.iter() {
       let u_index_values = u_index_fn(&existing_model);
 
       for u_index_value in u_index_values {
-        let u_index_key =
-          unique_index_base_key::<M>(u_index_name).with_either(u_index_value);
+        let u_index_key = unique_index_base_key::<M>(*u_index_selector)
+          .with_either(u_index_value);
 
         (txn, _) = txn
           .csm_delete(&u_index_key)
@@ -575,11 +566,11 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
     }
 
     // cleanup regular indices
-    for (index_name, index_fn) in M::INDICES.iter() {
+    for (index_selector, index_fn) in M::INDICES.iter() {
       let index_values = index_fn(&existing_model);
 
       for index_value in index_values {
-        let index_key = index_base_key::<M>(index_name)
+        let index_key = index_base_key::<M>(*index_selector)
           .with_either(index_value)
           .with(StrictSlug::new(id_ulid));
 
