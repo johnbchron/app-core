@@ -38,6 +38,16 @@ pub(crate) trait DatabaseAdapter<M: model::Model>: Hexagonal {
     index_value: EitherSlug,
   ) -> Result<Vec<M>, FetchModelByIndexError>;
 
+  /// Counts the models that match the index value.
+  ///
+  /// Must be a valid index, defined in the model's
+  /// [`INDICES`](model::Model::INDICES) constant.
+  async fn count_models_by_index(
+    &self,
+    index_selector: M::IndexSelector,
+    index_value: EitherSlug,
+  ) -> Result<u32, FetchModelByIndexError>;
+
   /// Produces a list of all model IDs.
   async fn enumerate_models(&self) -> Result<Vec<M>>;
 

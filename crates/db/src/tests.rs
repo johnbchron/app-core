@@ -287,6 +287,95 @@ mod generic_testing {
       Err(CreateModelError::UniqueIndexAlreadyExists { .. })
     ));
   }
+
+  #[tokio::test]
+  async fn test_count_models_by_index<I: DbInstantiator>() {
+    let db = I::init();
+
+    let owner1 = Ulid::new();
+    let owner2 = Ulid::new();
+
+    let model1 = TestModel {
+      id:    model::RecordId::new(),
+      name:  StrictSlug::new("test1"),
+      owner: owner1,
+    };
+    let model2 = TestModel {
+      id:    model::RecordId::new(),
+      name:  StrictSlug::new("test2"),
+      owner: owner1,
+    };
+    let model3 = TestModel {
+      id:    model::RecordId::new(),
+      name:  StrictSlug::new("test3"),
+      owner: owner1,
+    };
+    let model4 = TestModel {
+      id:    model::RecordId::new(),
+      name:  StrictSlug::new("test4"),
+      owner: owner2,
+    };
+
+    // Create all models
+    db.create_model(model1.clone()).await.unwrap();
+    db.create_model(model2.clone()).await.unwrap();
+    db.create_model(model3.clone()).await.unwrap();
+    db.create_model(model4.clone()).await.unwrap();
+
+    // Count models by owner1 - should be 3
+    let count_owner1 = db
+      .count_models_by_index(
+        TestModelIndexSelector::Owner,
+        EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
+      )
+      .await
+      .unwrap();
+    assert_eq!(count_owner1, 3);
+
+    // Count models by owner2 - should be 1
+    let count_owner2 = db
+      .count_models_by_index(
+        TestModelIndexSelector::Owner,
+        EitherSlug::Strict(StrictSlug::new(owner2.to_string())),
+      )
+      .await
+      .unwrap();
+    assert_eq!(count_owner2, 1);
+
+    // Count models by non-existent owner - should be 0
+    let non_existent_owner = Ulid::new();
+    let count_non_existent = db
+      .count_models_by_index(
+        TestModelIndexSelector::Owner,
+        EitherSlug::Strict(StrictSlug::new(non_existent_owner.to_string())),
+      )
+      .await
+      .unwrap();
+    assert_eq!(count_non_existent, 0);
+
+    // Delete one model and verify count changes
+    db.delete_model(model1.id()).await.unwrap();
+
+    let count_owner1_after_delete = db
+      .count_models_by_index(
+        TestModelIndexSelector::Owner,
+        EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
+      )
+      .await
+      .unwrap();
+    assert_eq!(count_owner1_after_delete, 2);
+
+    // Verify consistency with fetch_models_by_index
+    let fetched_models = db
+      .fetch_model_by_index(
+        TestModelIndexSelector::Owner,
+        EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
+      )
+      .await
+      .unwrap();
+    assert_eq!(count_owner1_after_delete as usize, fetched_models.len());
+  }
+
   #[tokio::test]
   async fn test_patch_model<I: DbInstantiator>() {
     let db = I::init();

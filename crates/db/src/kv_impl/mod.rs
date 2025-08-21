@@ -310,6 +310,41 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
   }
 
   #[instrument(skip(self), fields(table = M::TABLE_NAME))]
+  async fn count_models_by_index(
+    &self,
+    index_selector: M::IndexSelector,
+    index_value: EitherSlug,
+  ) -> Result<u32, FetchModelByIndexError> {
+    tracing::debug!("counting models by index");
+
+    let first_key = index_base_key::<M>(index_selector)
+      .with_either(index_value.clone())
+      .with(StrictSlug::new(model::RecordId::<M>::MIN().to_string()));
+    let last_key = index_base_key::<M>(index_selector)
+      .with_either(index_value)
+      .with(StrictSlug::new(model::RecordId::<M>::MAX().to_string()));
+
+    let txn = self
+      .0
+      .begin_optimistic_transaction()
+      .await
+      .context("failed to begin optimistic transaction")
+      .map_err(FetchModelByIndexError::RetryableTransaction)?;
+
+    let (txn, scan_results) = txn
+      .csm_scan(Bound::Included(first_key), Bound::Included(last_key), None)
+      .await
+      .map_err(FetchModelByIndexError::Db)?;
+
+    txn
+      .to_commit()
+      .await
+      .map_err(FetchModelByIndexError::RetryableTransaction)?;
+
+    Ok(scan_results.len() as u32)
+  }
+
+  #[instrument(skip(self), fields(table = M::TABLE_NAME))]
   async fn enumerate_models(&self) -> Result<Vec<M>> {
     let first_key = model_base_key::<M>(&model::RecordId::<M>::MIN());
     let last_key = model_base_key::<M>(&model::RecordId::<M>::MAX());

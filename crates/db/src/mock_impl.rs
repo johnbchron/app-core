@@ -133,6 +133,18 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     Ok(models)
   }
 
+  async fn count_models_by_index(
+    &self,
+    index_selector: M::IndexSelector,
+    index_value: EitherSlug,
+  ) -> Result<u32, FetchModelByIndexError> {
+    let mut indices = self.0.indices.lock().await;
+    let index = indices.entry(index_selector.to_string()).or_default();
+
+    let ids = index.get(&index_value).cloned().unwrap_or_default();
+    Ok(ids.len() as _)
+  }
+
   async fn enumerate_models(&self) -> miette::Result<Vec<M>> {
     Ok(self.0.models.lock().await.values().cloned().collect())
   }

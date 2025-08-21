@@ -103,6 +103,20 @@ impl<M: model::Model> Database<M> {
       .fetch_models_by_index(index_selector, index_value)
       .await
   }
+  /// Counts the models that match the index value.
+  ///
+  /// Must be a valid index, defined in the model's
+  /// [`INDICES`](model::Model::INDICES) constant.
+  pub async fn count_models_by_index(
+    &self,
+    index_selector: M::IndexSelector,
+    index_value: EitherSlug,
+  ) -> Result<u32, FetchModelByIndexError> {
+    self
+      .inner
+      .count_models_by_index(index_selector, index_value)
+      .await
+  }
   /// Produces a list of all model IDs.
   pub async fn enumerate_models(&self) -> Result<Vec<M>> {
     self.inner.enumerate_models().await
