@@ -197,7 +197,7 @@ mod generic_testing {
   }
 
   #[tokio::test]
-  async fn test_fetch_model_by_index<I: DbInstantiator>() {
+  async fn test_fetch_models_by_index<I: DbInstantiator>() {
     let db = I::init();
 
     let owner = Ulid::new();
@@ -223,7 +223,7 @@ mod generic_testing {
     db.create_model(model3.clone()).await.unwrap();
 
     let fetched_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner)),
       )
@@ -235,7 +235,7 @@ mod generic_testing {
     assert!(!fetched_models.contains(&model3));
 
     let fetched_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(second_owner)),
       )
@@ -367,7 +367,7 @@ mod generic_testing {
 
     // Verify consistency with fetch_models_by_index
     let fetched_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
@@ -492,7 +492,7 @@ mod generic_testing {
 
     // Verify the model can be found by the original owner index
     let found_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
@@ -514,7 +514,7 @@ mod generic_testing {
 
     // Verify the old index no longer contains the model
     let old_index_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
@@ -524,7 +524,7 @@ mod generic_testing {
 
     // Verify the new index contains the updated model
     let new_index_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner2.to_string())),
       )
@@ -608,7 +608,7 @@ mod generic_testing {
 
     // Verify both models are in the index
     let models_by_owner = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
@@ -622,7 +622,7 @@ mod generic_testing {
 
     // Verify the index is updated
     let remaining_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
@@ -670,7 +670,7 @@ mod generic_testing {
 
     // Verify the model is in the index
     let models_by_owner = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
@@ -684,7 +684,7 @@ mod generic_testing {
 
     // Verify the index entry is empty (should return empty vec, not error)
     let remaining_models = db
-      .fetch_model_by_index(
+      .fetch_models_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )

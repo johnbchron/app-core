@@ -89,11 +89,11 @@ impl<M: model::Model> Database<M> {
       .fetch_model_by_unique_index(index_selector, index_value)
       .await
   }
-  /// Fetches a model by an index.
+  /// Fetches models by an index.
   ///
   /// Must be a valid index, defined in the model's
   /// [`INDICES`](model::Model::INDICES) constant.
-  pub async fn fetch_model_by_index(
+  pub async fn fetch_models_by_index(
     &self,
     index_selector: M::IndexSelector,
     index_value: EitherSlug,
