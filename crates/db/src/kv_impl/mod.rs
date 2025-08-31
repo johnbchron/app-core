@@ -3,7 +3,7 @@
 mod consumptive;
 mod keys;
 
-use std::{collections::HashSet, ops::Bound};
+use std::ops::Bound;
 
 use hex::health::{self, HealthAware};
 use kv::*;
@@ -43,54 +43,15 @@ impl KvDatabaseAdapter {
     Ok((model_value, id_value))
   }
 
-  /// Helper to get or create ID set for an index
-  async fn get_id_set_for_index<T: ConsumptiveTransaction>(
-    &self,
-    txn: T,
-    index_key: &Key,
-  ) -> Result<(T, HashSet<model::Ulid>), miette::Report> {
-    let (txn, existing_value) = txn.csm_get(index_key).await?;
-
-    let id_set = if let Some(value) = existing_value {
-      Value::deserialize::<HashSet<model::Ulid>>(value)
-        .into_diagnostic()
-        .context("failed to deserialize ID set")?
-    } else {
-      HashSet::new()
-    };
-
-    Ok((txn, id_set))
-  }
-
-  /// Helper to store ID set for an index
-  async fn store_id_set_for_index<T: ConsumptiveTransaction>(
-    &self,
-    txn: T,
-    index_key: &Key,
-    id_set: HashSet<model::Ulid>,
-  ) -> Result<T, miette::Report> {
-    if id_set.is_empty() {
-      // If the set is empty, delete the key entirely
-      let (txn, _) = txn.csm_delete(index_key).await?;
-      Ok(txn)
-    } else {
-      let id_set_value = Value::serialize(&id_set)
-        .into_diagnostic()
-        .context("failed to serialize ID set")?;
-      let txn = txn.csm_put(index_key, id_set_value).await?;
-      Ok(txn)
-    }
-  }
-
   /// Helper to handle unique index operations during create/patch
   async fn handle_unique_indices<M: model::Model, T: ConsumptiveTransaction>(
     &self,
     txn: T,
     model: &M,
+    id_value: &Value,
     operation: IndexOperation,
   ) -> Result<T, CreateModelError> {
     let mut current_txn = txn;
-    let id_ulid: model::Ulid = model.id().into();
 
     for (u_index_selector, u_index_fn) in M::UNIQUE_INDICES.iter() {
       let u_index_values = u_index_fn(model);
@@ -101,17 +62,15 @@ impl KvDatabaseAdapter {
 
         current_txn = match operation {
           IndexOperation::Insert => {
-            // Get existing ID set
-            let (txn, mut id_set) = self
-              .get_id_set_for_index(current_txn, &u_index_key)
+            // Check if index exists
+            let (_txn, exists) = current_txn
+              .csm_exists(&u_index_key)
               .await
-              .context("failed to get ID set for unique index")
+              .context("failed to check if unique index exists")
               .map_err(CreateModelError::Db)?;
-            current_txn = txn;
+            current_txn = _txn;
 
-            // For unique indices, the set should be empty or contain only this
-            // ID
-            if !id_set.is_empty() && !id_set.contains(&id_ulid) {
+            if exists {
               current_txn
                 .to_rollback()
                 .await
@@ -122,38 +81,20 @@ impl KvDatabaseAdapter {
               });
             }
 
-            // Add the ID to the set
-            id_set.insert(id_ulid);
-
-            // Store the updated set
-            current_txn = self
-              .store_id_set_for_index(current_txn, &u_index_key, id_set)
-              .await
-              .context("failed to store ID set for unique index")
-              .map_err(CreateModelError::Db)?;
-
+            // Insert the index
             current_txn
+              .csm_insert(&u_index_key, id_value.clone())
+              .await
+              .context("failed to insert unique index")
+              .map_err(CreateModelError::Db)?
           }
           IndexOperation::Delete => {
-            // Get existing ID set
-            let (txn, mut id_set) = self
-              .get_id_set_for_index(current_txn, &u_index_key)
+            let (updated_txn, _) = current_txn
+              .csm_delete(&u_index_key)
               .await
-              .context("failed to get ID set for unique index")
+              .context("failed to delete unique index")
               .map_err(CreateModelError::Db)?;
-            current_txn = txn;
-
-            // Remove the ID from the set
-            id_set.remove(&id_ulid);
-
-            // Store the updated set (or delete if empty)
-            current_txn = self
-              .store_id_set_for_index(current_txn, &u_index_key, id_set)
-              .await
-              .context("failed to store ID set for unique index")
-              .map_err(CreateModelError::Db)?;
-
-            current_txn
+            updated_txn
           }
         };
       }
@@ -170,6 +111,7 @@ impl KvDatabaseAdapter {
     &self,
     txn: T,
     model: &M,
+    id_value: &Value,
     operation: IndexOperation,
   ) -> Result<T, CreateModelError> {
     let mut current_txn = txn;
@@ -179,51 +121,23 @@ impl KvDatabaseAdapter {
       let index_values = index_fn(model);
 
       for index_value in index_values {
-        let index_key =
-          index_base_key::<M>(*index_selector).with_either(index_value);
+        let index_key = index_base_key::<M>(*index_selector)
+          .with_either(index_value)
+          .with(StrictSlug::new(id_ulid));
 
         current_txn = match operation {
-          IndexOperation::Insert => {
-            // Get existing ID set
-            let (txn, mut id_set) = self
-              .get_id_set_for_index(current_txn, &index_key)
-              .await
-              .context("failed to get ID set for index")
-              .map_err(CreateModelError::Db)?;
-            current_txn = txn;
-
-            // Add the ID to the set
-            id_set.insert(id_ulid);
-
-            // Store the updated set
-            current_txn = self
-              .store_id_set_for_index(current_txn, &index_key, id_set)
-              .await
-              .context("failed to store ID set for index")
-              .map_err(CreateModelError::Db)?;
-
-            current_txn
-          }
+          IndexOperation::Insert => current_txn
+            .csm_insert(&index_key, id_value.clone())
+            .await
+            .context("failed to insert index")
+            .map_err(CreateModelError::Db)?,
           IndexOperation::Delete => {
-            // Get existing ID set
-            let (txn, mut id_set) = self
-              .get_id_set_for_index(current_txn, &index_key)
+            let (updated_txn, _) = current_txn
+              .csm_delete(&index_key)
               .await
-              .context("failed to get ID set for index")
+              .context("failed to delete index")
               .map_err(CreateModelError::Db)?;
-            current_txn = txn;
-
-            // Remove the ID from the set
-            id_set.remove(&id_ulid);
-
-            // Store the updated set (or delete if empty)
-            current_txn = self
-              .store_id_set_for_index(current_txn, &index_key, id_set)
-              .await
-              .context("failed to store ID set for index")
-              .map_err(CreateModelError::Db)?;
-
-            current_txn
+            updated_txn
           }
         };
       }
@@ -241,56 +155,44 @@ impl KvDatabaseAdapter {
     txn: T,
     existing_model: &M,
     new_model: &M,
+    id_value: &Value,
   ) -> Result<T, PatchModelError> {
     let mut current_txn = txn;
-    let id_ulid: model::Ulid = new_model.id().into();
 
     for (u_index_selector, u_index_fn) in M::UNIQUE_INDICES.iter() {
       let old_u_index_values = u_index_fn(existing_model);
       let new_u_index_values = u_index_fn(new_model);
 
-      // Remove from old unique indices that are no longer present
+      // Remove old unique indices that are no longer present
       for old_value in &old_u_index_values {
         if !new_u_index_values.contains(old_value) {
           let old_u_index_key = unique_index_base_key::<M>(*u_index_selector)
             .with_either(old_value.clone());
 
-          // Get existing ID set
-          let (txn, mut id_set) = self
-            .get_id_set_for_index(current_txn, &old_u_index_key)
+          let (updated_txn, _) = current_txn
+            .csm_delete(&old_u_index_key)
             .await
-            .context("failed to get ID set for old unique index")
+            .context("failed to delete old unique index")
             .map_err(PatchModelError::Db)?;
-          current_txn = txn;
-
-          // Remove the ID from the set
-          id_set.remove(&id_ulid);
-
-          // Store the updated set (or delete if empty)
-          current_txn = self
-            .store_id_set_for_index(current_txn, &old_u_index_key, id_set)
-            .await
-            .context("failed to store ID set for old unique index")
-            .map_err(PatchModelError::Db)?;
+          current_txn = updated_txn;
         }
       }
 
-      // Add to new unique indices
+      // Add new unique indices
       for new_value in &new_u_index_values {
         if !old_u_index_values.contains(new_value) {
           let new_u_index_key = unique_index_base_key::<M>(*u_index_selector)
             .with_either(new_value.clone());
 
-          // Get existing ID set
-          let (txn, mut id_set) = self
-            .get_id_set_for_index(current_txn, &new_u_index_key)
+          // Check if the new index value already exists
+          let (_txn, exists) = current_txn
+            .csm_exists(&new_u_index_key)
             .await
-            .context("failed to get ID set for new unique index")
+            .context("failed to check if unique index exists")
             .map_err(PatchModelError::Db)?;
-          current_txn = txn;
+          current_txn = _txn;
 
-          // For unique indices, the set should be empty or contain only this ID
-          if !id_set.is_empty() && !id_set.contains(&id_ulid) {
+          if exists {
             current_txn
               .to_rollback()
               .await
@@ -301,14 +203,11 @@ impl KvDatabaseAdapter {
             });
           }
 
-          // Add the ID to the set
-          id_set.insert(id_ulid);
-
-          // Store the updated set
-          current_txn = self
-            .store_id_set_for_index(current_txn, &new_u_index_key, id_set)
+          // Insert the new unique index
+          current_txn = current_txn
+            .csm_insert(&new_u_index_key, id_value.clone())
             .await
-            .context("failed to store ID set for new unique index")
+            .context("failed to insert new unique index")
             .map_err(PatchModelError::Db)?;
         }
       }
@@ -326,6 +225,7 @@ impl KvDatabaseAdapter {
     txn: T,
     existing_model: &M,
     new_model: &M,
+    id_value: &Value,
   ) -> Result<T, PatchModelError> {
     let mut current_txn = txn;
     let id_ulid: model::Ulid = new_model.id().into();
@@ -334,54 +234,33 @@ impl KvDatabaseAdapter {
       let old_index_values = index_fn(existing_model);
       let new_index_values = index_fn(new_model);
 
-      // Remove from old indices that are no longer present
+      // Remove old indices that are no longer present
       for old_value in &old_index_values {
         if !new_index_values.contains(old_value) {
-          let old_index_key =
-            index_base_key::<M>(*index_selector).with_either(old_value.clone());
+          let old_index_key = index_base_key::<M>(*index_selector)
+            .with_either(old_value.clone())
+            .with(StrictSlug::new(id_ulid));
 
-          // Get existing ID set
-          let (txn, mut id_set) = self
-            .get_id_set_for_index(current_txn, &old_index_key)
+          let (updated_txn, _) = current_txn
+            .csm_delete(&old_index_key)
             .await
-            .context("failed to get ID set for old index")
+            .context("failed to delete old index")
             .map_err(PatchModelError::Db)?;
-          current_txn = txn;
-
-          // Remove the ID from the set
-          id_set.remove(&id_ulid);
-
-          // Store the updated set (or delete if empty)
-          current_txn = self
-            .store_id_set_for_index(current_txn, &old_index_key, id_set)
-            .await
-            .context("failed to store ID set for old index")
-            .map_err(PatchModelError::Db)?;
+          current_txn = updated_txn;
         }
       }
 
-      // Add to new indices
+      // Add new indices
       for new_value in &new_index_values {
         if !old_index_values.contains(new_value) {
-          let new_index_key =
-            index_base_key::<M>(*index_selector).with_either(new_value.clone());
+          let new_index_key = index_base_key::<M>(*index_selector)
+            .with_either(new_value.clone())
+            .with(StrictSlug::new(id_ulid));
 
-          // Get existing ID set
-          let (txn, mut id_set) = self
-            .get_id_set_for_index(current_txn, &new_index_key)
+          current_txn = current_txn
+            .csm_insert(&new_index_key, id_value.clone())
             .await
-            .context("failed to get ID set for new index")
-            .map_err(PatchModelError::Db)?;
-          current_txn = txn;
-
-          // Add the ID to the set
-          id_set.insert(id_ulid);
-
-          // Store the updated set
-          current_txn = self
-            .store_id_set_for_index(current_txn, &new_index_key, id_set)
-            .await
-            .context("failed to store ID set for new index")
+            .context("failed to insert new index")
             .map_err(PatchModelError::Db)?;
         }
       }
@@ -394,6 +273,20 @@ impl KvDatabaseAdapter {
   fn get_model_key_range<M: model::Model>() -> (Key, Key) {
     let first_key = model_base_key::<M>(&model::RecordId::<M>::MIN());
     let last_key = model_base_key::<M>(&model::RecordId::<M>::MAX());
+    (first_key, last_key)
+  }
+
+  /// Helper to get index key range for scanning
+  fn get_index_key_range<M: model::Model>(
+    index_selector: M::IndexSelector,
+    index_value: EitherSlug,
+  ) -> (Key, Key) {
+    let first_key = index_base_key::<M>(index_selector)
+      .with_either(index_value.clone())
+      .with(StrictSlug::new(model::RecordId::<M>::MIN().to_string()));
+    let last_key = index_base_key::<M>(index_selector)
+      .with_either(index_value)
+      .with(StrictSlug::new(model::RecordId::<M>::MAX().to_string()));
     (first_key, last_key)
   }
 
@@ -435,7 +328,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
     tracing::debug!("creating model");
 
     let model_key = model_base_key::<M>(&model.id());
-    let (model_value, _id_value) = self.serialize_model_and_id(&model)?;
+    let (model_value, id_value) = self.serialize_model_and_id(&model)?;
 
     let txn = self
       .0
@@ -467,12 +360,12 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
 
     // Handle unique indices
     let txn = self
-      .handle_unique_indices(txn, &model, IndexOperation::Insert)
+      .handle_unique_indices(txn, &model, &id_value, IndexOperation::Insert)
       .await?;
 
     // Handle regular indices
     let txn = self
-      .handle_regular_indices(txn, &model, IndexOperation::Insert)
+      .handle_regular_indices(txn, &model, &id_value, IndexOperation::Insert)
       .await?;
 
     txn
@@ -533,7 +426,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .context("failed to begin optimistic transaction")
       .map_err(FetchModelByIndexError::RetryableTransaction)?;
 
-    let (txn, id_set_value) = txn
+    let (txn, id_value) = txn
       .csm_get(&index_key)
       .await
       .map_err(FetchModelByIndexError::Db)?;
@@ -543,33 +436,20 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .await
       .map_err(FetchModelByIndexError::RetryableTransaction)?;
 
-    let id_set = id_set_value
-      .map(Value::deserialize::<HashSet<model::Ulid>>)
+    let id = id_value
+      .map(Value::deserialize::<model::RecordId<M>>)
       .transpose()
       .into_diagnostic()
-      .context("failed to deserialize ID set")
+      .context("failed to deserialize id")
       .map_err(FetchModelByIndexError::Serde)?;
 
-    let id_set = match id_set {
-      Some(set) => set,
-      None => {
-        return Ok(None);
-      }
+    let id = match id {
+      Some(id) => id,
+      None => return Ok(None),
     };
 
-    // For unique indices, there should be exactly one ID
-    if id_set.len() != 1 {
-      return Err(FetchModelByIndexError::IndexMalformed {
-        index_selector: index_selector.to_string(),
-        index_value,
-      });
-    }
-
-    let id = id_set.into_iter().next().unwrap();
-    let record_id = model::RecordId::<M>::from_ulid(id);
-
     let model = match self
-      .fetch_model_by_id(record_id)
+      .fetch_model_by_id(id)
       .await
       .map_err(FetchModelByIndexError::from)?
     {
@@ -593,8 +473,8 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
   ) -> Result<Vec<M>, FetchModelByIndexError> {
     tracing::debug!("fetching model by index");
 
-    let index_key =
-      index_base_key::<M>(index_selector).with_either(index_value);
+    let (first_key, last_key) =
+      Self::get_index_key_range::<M>(index_selector, index_value);
 
     let txn = self
       .0
@@ -603,37 +483,29 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .context("failed to begin optimistic transaction")
       .map_err(FetchModelError::RetryableTransaction)?;
 
-    let (txn, id_set_value) =
-      txn.csm_get(&index_key).await.map_err(FetchModelError::Db)?;
+    let (txn, scan_results) = txn
+      .csm_scan(Bound::Included(first_key), Bound::Included(last_key), None)
+      .await
+      .map_err(FetchModelError::Db)?;
 
-    let id_set = id_set_value
-      .map(Value::deserialize::<HashSet<model::Ulid>>)
-      .transpose()
-      .into_diagnostic()
-      .context("failed to deserialize ID set")
-      .map_err(FetchModelByIndexError::Serde)?;
+    let ids = scan_results
+      .into_iter()
+      .map(|(_, value)| {
+        Value::deserialize::<model::RecordId<M>>(value)
+          .into_diagnostic()
+          .context("failed to deserialize value into id")
+          .map_err(FetchModelByIndexError::Serde)
+      })
+      .try_collect::<Vec<_>>()?;
 
-    let id_set = match id_set {
-      Some(set) => set,
-      None => {
-        txn
-          .to_commit()
-          .await
-          .map_err(FetchModelByIndexError::RetryableTransaction)?;
-        return Ok(Vec::new());
-      }
-    };
-
-    // Fetch all models for the IDs in the set
-    let mut model_values = Vec::with_capacity(id_set.len());
+    let mut model_values = Vec::with_capacity(ids.len());
     let mut txn = Some(txn);
 
-    let mut id_list = id_set.into_iter().collect::<Vec<_>>();
+    let mut id_list = ids.into_iter().collect::<Vec<_>>();
     id_list.sort_unstable();
 
-    for id_ulid in id_list {
-      let record_id = model::RecordId::<M>::from_ulid(id_ulid);
-      let model_key = model_base_key::<M>(&record_id);
+    for id in id_list {
+      let model_key = model_base_key::<M>(&id);
       let (_txn, model_value) = txn
         .take()
         .expect("txn wasn't put back in the option, for some reason")
@@ -672,8 +544,8 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
   ) -> Result<u32, FetchModelByIndexError> {
     tracing::debug!("counting models by index");
 
-    let index_key =
-      index_base_key::<M>(index_selector).with_either(index_value);
+    let (first_key, last_key) =
+      Self::get_index_key_range::<M>(index_selector, index_value);
 
     let txn = self
       .0
@@ -682,8 +554,8 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .context("failed to begin optimistic transaction")
       .map_err(FetchModelByIndexError::RetryableTransaction)?;
 
-    let (txn, id_set_value) = txn
-      .csm_get(&index_key)
+    let (txn, scan_results) = txn
+      .csm_scan(Bound::Included(first_key), Bound::Included(last_key), None)
       .await
       .map_err(FetchModelByIndexError::Db)?;
 
@@ -692,14 +564,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .await
       .map_err(FetchModelByIndexError::RetryableTransaction)?;
 
-    let id_set = id_set_value
-      .map(Value::deserialize::<HashSet<model::Ulid>>)
-      .transpose()
-      .into_diagnostic()
-      .context("failed to deserialize ID set")
-      .map_err(FetchModelByIndexError::Serde)?;
-
-    Ok(id_set.map(|set| set.len() as u32).unwrap_or(0))
+    Ok(scan_results.len() as u32)
   }
 
   #[instrument(skip(self), fields(table = M::TABLE_NAME))]
@@ -746,7 +611,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
     tracing::debug!("patching model");
 
     let model_key = model_base_key::<M>(&id);
-    let (model_value, _id_value) =
+    let (model_value, id_value) =
       self.serialize_model_and_id(&model).map_err(|e| match e {
         CreateModelError::Serde(s) => PatchModelError::Serde(s),
         _ => unreachable!("serialize_model_and_id only returns Serde errors"),
@@ -785,12 +650,12 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
 
     // Handle unique index updates
     let txn = self
-      .handle_unique_index_updates(txn, &existing_model, &model)
+      .handle_unique_index_updates(txn, &existing_model, &model, &id_value)
       .await?;
 
     // Handle regular index updates
     let txn = self
-      .handle_regular_index_updates(txn, &existing_model, &model)
+      .handle_regular_index_updates(txn, &existing_model, &model, &id_value)
       .await?;
 
     txn
@@ -843,9 +708,20 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .map_err(DeleteModelError::Db)?;
 
     // Cleanup indices using the existing model data
+    let id_ulid: model::Ulid = id.into();
+    let id_value = Value::serialize(&id_ulid)
+      .into_diagnostic()
+      .context("failed to serialize id")
+      .map_err(DeleteModelError::Db)?;
+
     // Use the helper methods for cleanup (converting errors appropriately)
     let txn = self
-      .handle_unique_indices(txn, &existing_model, IndexOperation::Delete)
+      .handle_unique_indices(
+        txn,
+        &existing_model,
+        &id_value,
+        IndexOperation::Delete,
+      )
       .await
       .map_err(|e| match e {
         CreateModelError::Db(db_err) => {
@@ -857,7 +733,12 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       })?;
 
     let txn = self
-      .handle_regular_indices(txn, &existing_model, IndexOperation::Delete)
+      .handle_regular_indices(
+        txn,
+        &existing_model,
+        &id_value,
+        IndexOperation::Delete,
+      )
       .await
       .map_err(|e| match e {
         CreateModelError::Db(db_err) => {
