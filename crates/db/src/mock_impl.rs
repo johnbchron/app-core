@@ -5,7 +5,7 @@ use std::{
 
 use hex::health;
 use kv::*;
-use model::Model;
+use model::{Model, RecordId};
 use tokio::sync::Mutex;
 
 use crate::{
@@ -115,22 +115,17 @@ impl<M: Model> DatabaseAdapter<M> for MockDatabaseAdapter<M> {
     }
   }
 
-  async fn fetch_models_by_index(
+  async fn fetch_ids_by_index(
     &self,
     index_selector: M::IndexSelector,
     index_value: EitherSlug,
-  ) -> Result<Vec<M>, FetchModelByIndexError> {
+  ) -> Result<Vec<RecordId<M>>, FetchModelByIndexError> {
     let mut indices = self.0.indices.lock().await;
     let index = indices.entry(index_selector.to_string()).or_default();
 
     let ids = index.get(&index_value).cloned().unwrap_or_default();
-    let mut models = Vec::with_capacity(ids.len());
 
-    for id in ids {
-      models.push(self.fetch_model_by_id(id).await.unwrap().unwrap());
-    }
-
-    Ok(models)
+    Ok(ids)
   }
 
   async fn count_models_by_index(

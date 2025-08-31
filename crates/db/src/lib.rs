@@ -31,6 +31,7 @@ use hex::health;
 pub use kv;
 use kv::EitherSlug;
 use miette::Result;
+use model::RecordId;
 
 pub use self::adapter::*;
 use self::kv_impl::KvDatabaseAdapter;
@@ -89,18 +90,18 @@ impl<M: model::Model> Database<M> {
       .fetch_model_by_unique_index(index_selector, index_value)
       .await
   }
-  /// Fetches models by an index.
+  /// Fetches IDs of models matching an index value.
   ///
   /// Must be a valid index, defined in the model's
   /// [`INDICES`](model::Model::INDICES) constant.
-  pub async fn fetch_models_by_index(
+  pub async fn fetch_ids_by_index(
     &self,
     index_selector: M::IndexSelector,
     index_value: EitherSlug,
-  ) -> Result<Vec<M>, FetchModelByIndexError> {
+  ) -> Result<Vec<RecordId<M>>, FetchModelByIndexError> {
     self
       .inner
-      .fetch_models_by_index(index_selector, index_value)
+      .fetch_ids_by_index(index_selector, index_value)
       .await
   }
   /// Counts the models that match the index value.

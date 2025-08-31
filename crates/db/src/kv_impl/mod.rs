@@ -8,6 +8,7 @@ use std::ops::Bound;
 use hex::health::{self, HealthAware};
 use kv::*;
 use miette::{Context, IntoDiagnostic, Result};
+use model::RecordId;
 use tracing::instrument;
 
 use self::{consumptive::ConsumptiveTransaction, keys::*};
@@ -466,11 +467,11 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
   }
 
   #[instrument(skip(self), fields(table = M::TABLE_NAME))]
-  async fn fetch_models_by_index(
+  async fn fetch_ids_by_index(
     &self,
     index_selector: M::IndexSelector,
     index_value: EitherSlug,
-  ) -> Result<Vec<M>, FetchModelByIndexError> {
+  ) -> Result<Vec<RecordId<M>>, FetchModelByIndexError> {
     tracing::debug!("fetching model by index");
 
     let (first_key, last_key) =
@@ -488,7 +489,7 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .await
       .map_err(FetchModelError::Db)?;
 
-    let ids = scan_results
+    let mut ids = scan_results
       .into_iter()
       .map(|(_, value)| {
         Value::deserialize::<model::RecordId<M>>(value)
@@ -497,43 +498,14 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
           .map_err(FetchModelByIndexError::Serde)
       })
       .try_collect::<Vec<_>>()?;
-
-    let mut model_values = Vec::with_capacity(ids.len());
-    let mut txn = Some(txn);
-
-    let mut id_list = ids.into_iter().collect::<Vec<_>>();
-    id_list.sort_unstable();
-
-    for id in id_list {
-      let model_key = model_base_key::<M>(&id);
-      let (_txn, model_value) = txn
-        .take()
-        .expect("txn wasn't put back in the option, for some reason")
-        .csm_get(&model_key)
-        .await
-        .map_err(FetchModelError::Db)?;
-      txn = Some(_txn);
-      model_values.push(model_value);
-    }
+    ids.sort_unstable();
 
     txn
-      .expect("txn wasn't put back in the option, for some reason")
       .to_commit()
       .await
       .map_err(FetchModelByIndexError::RetryableTransaction)?;
 
-    let models = model_values
-      .into_iter()
-      .flatten()
-      .map(|value| {
-        Value::deserialize::<M>(value)
-          .into_diagnostic()
-          .context("failed to deserialize value into model")
-          .map_err(FetchModelByIndexError::Serde)
-      })
-      .try_collect::<Vec<_>>()?;
-
-    Ok(models)
+    Ok(ids)
   }
 
   #[instrument(skip(self), fields(table = M::TABLE_NAME))]

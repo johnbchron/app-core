@@ -197,7 +197,7 @@ mod generic_testing {
   }
 
   #[tokio::test]
-  async fn test_fetch_models_by_index<I: DbInstantiator>() {
+  async fn test_fetch_ids_by_index<I: DbInstantiator>() {
     let db = I::init();
 
     let owner = Ulid::new();
@@ -222,29 +222,29 @@ mod generic_testing {
     db.create_model(model2.clone()).await.unwrap();
     db.create_model(model3.clone()).await.unwrap();
 
-    let fetched_models = db
-      .fetch_models_by_index(
+    let fetched_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner)),
       )
       .await
       .unwrap();
 
-    assert!(fetched_models.contains(&model));
-    assert!(fetched_models.contains(&model2));
-    assert!(!fetched_models.contains(&model3));
+    assert!(fetched_ids.contains(&model.id));
+    assert!(fetched_ids.contains(&model2.id));
+    assert!(!fetched_ids.contains(&model3.id));
 
-    let fetched_models = db
-      .fetch_models_by_index(
+    let fetched_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(second_owner)),
       )
       .await
       .unwrap();
 
-    assert!(!fetched_models.contains(&model));
-    assert!(!fetched_models.contains(&model2));
-    assert!(fetched_models.contains(&model3));
+    assert!(!fetched_ids.contains(&model.id));
+    assert!(!fetched_ids.contains(&model2.id));
+    assert!(fetched_ids.contains(&model3.id));
   }
 
   #[tokio::test]
@@ -365,15 +365,15 @@ mod generic_testing {
       .unwrap();
     assert_eq!(count_owner1_after_delete, 2);
 
-    // Verify consistency with fetch_models_by_index
-    let fetched_models = db
-      .fetch_models_by_index(
+    // Verify consistency with fetch_ids_by_index
+    let fetched_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(count_owner1_after_delete as usize, fetched_models.len());
+    assert_eq!(count_owner1_after_delete as usize, fetched_ids.len());
   }
 
   #[tokio::test]
@@ -491,15 +491,15 @@ mod generic_testing {
     db.create_model(model.clone()).await.unwrap();
 
     // Verify the model can be found by the original owner index
-    let found_models = db
-      .fetch_models_by_index(
+    let found_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(found_models.len(), 1);
-    assert!(found_models.contains(&model));
+    assert_eq!(found_ids.len(), 1);
+    assert!(found_ids.contains(&model.id));
 
     // Update the model with a different owner
     let updated_model = TestModel {
@@ -513,25 +513,25 @@ mod generic_testing {
       .unwrap();
 
     // Verify the old index no longer contains the model
-    let old_index_models = db
-      .fetch_models_by_index(
+    let old_index_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner1.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(old_index_models.len(), 0);
+    assert_eq!(old_index_ids.len(), 0);
 
     // Verify the new index contains the updated model
-    let new_index_models = db
-      .fetch_models_by_index(
+    let new_index_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner2.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(new_index_models.len(), 1);
-    assert!(new_index_models.contains(&updated_model));
+    assert_eq!(new_index_ids.len(), 1);
+    assert!(new_index_ids.contains(&updated_model.id));
 
     // Verify unique index is also updated
     let found_by_old_name = db
@@ -607,30 +607,30 @@ mod generic_testing {
     db.create_model(model2.clone()).await.unwrap();
 
     // Verify both models are in the index
-    let models_by_owner = db
-      .fetch_models_by_index(
+    let ids_by_owner = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(models_by_owner.len(), 2);
+    assert_eq!(ids_by_owner.len(), 2);
 
     // Delete one model
     let deleted = db.delete_model(model1.id()).await.unwrap();
     assert!(deleted);
 
     // Verify the index is updated
-    let remaining_models = db
-      .fetch_models_by_index(
+    let remaining_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(remaining_models.len(), 1);
-    assert!(remaining_models.contains(&model2));
-    assert!(!remaining_models.contains(&model1));
+    assert_eq!(remaining_ids.len(), 1);
+    assert!(remaining_ids.contains(&model2.id));
+    assert!(!remaining_ids.contains(&model1.id));
 
     // Verify unique index is also cleaned up
     let found_by_name = db
@@ -669,28 +669,28 @@ mod generic_testing {
     db.create_model(model.clone()).await.unwrap();
 
     // Verify the model is in the index
-    let models_by_owner = db
-      .fetch_models_by_index(
+    let ids_by_owner = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(models_by_owner.len(), 1);
+    assert_eq!(ids_by_owner.len(), 1);
 
     // Delete the model
     let deleted = db.delete_model(model.id()).await.unwrap();
     assert!(deleted);
 
     // Verify the index entry is empty (should return empty vec, not error)
-    let remaining_models = db
-      .fetch_models_by_index(
+    let remaining_ids = db
+      .fetch_ids_by_index(
         TestModelIndexSelector::Owner,
         EitherSlug::Strict(StrictSlug::new(owner.to_string())),
       )
       .await
       .unwrap();
-    assert_eq!(remaining_models.len(), 0);
+    assert_eq!(remaining_ids.len(), 0);
   }
 
   #[tokio::test]
