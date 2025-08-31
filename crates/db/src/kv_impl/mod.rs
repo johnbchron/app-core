@@ -628,7 +628,10 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
     let mut model_values = Vec::with_capacity(id_set.len());
     let mut txn = Some(txn);
 
-    for id_ulid in id_set {
+    let mut id_list = id_set.into_iter().collect::<Vec<_>>();
+    id_list.sort_unstable();
+
+    for id_ulid in id_list {
       let record_id = model::RecordId::<M>::from_ulid(id_ulid);
       let model_key = model_base_key::<M>(&record_id);
       let (_txn, model_value) = txn
