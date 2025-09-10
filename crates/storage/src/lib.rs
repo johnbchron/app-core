@@ -13,7 +13,6 @@ use std::{
 
 pub use belt;
 use belt::Belt;
-use hex::{health, Hexagonal};
 
 use self::{
   local::LocalStorageClient,
@@ -84,7 +83,7 @@ pub enum WriteError {
 
 /// The main storage trait. Allows reading to or writing from a stream of bytes.
 #[async_trait::async_trait]
-pub(crate) trait StorageClientLike: Hexagonal {
+pub(crate) trait StorageClientLike {
   /// Reads a file. Returns a [`Belt`].
   async fn read(&self, path: &Path) -> Result<Belt, ReadError>;
   /// Writes a file. Consumes a [`Belt`].
@@ -130,17 +129,5 @@ impl StorageClient {
     data: Belt,
   ) -> Result<dvf::FileSize, WriteError> {
     self.inner.write(path, data).await
-  }
-}
-
-#[async_trait::async_trait]
-impl health::HealthReporter for StorageClient {
-  fn name(&self) -> &'static str { self.inner.name() }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::AdditiveComponentHealth::from_futures(Some(
-      self.inner.health_report(),
-    ))
-    .await
-    .into()
   }
 }

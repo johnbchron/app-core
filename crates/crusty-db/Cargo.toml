@@ -8,7 +8,6 @@ version = "0.1.0"
 workspace = true
 
 [dependencies]
-hex = { path = "../hex" }
 kv = { path = "../kv", features = [] }
 model = { path = "../model" }
 

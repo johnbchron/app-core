@@ -2,7 +2,6 @@
 
 use std::ops::Bound;
 
-use hex::health;
 use miette::{Context, IntoDiagnostic};
 
 use crate::{
@@ -36,14 +35,6 @@ impl TikvClient {
       .into_diagnostic()
       .context("failed to create tikv client")?;
     Ok(client)
-  }
-}
-
-#[health::async_trait]
-impl health::HealthReporter for TikvClient {
-  fn name(&self) -> &'static str { stringify!(TikvClient) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::IntrensicallyUp.into()
   }
 }
 

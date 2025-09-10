@@ -3,7 +3,6 @@ use std::{
   sync::Arc,
 };
 
-use hex::health;
 use kv::*;
 use model::{Model, RecordId};
 use tokio::sync::Mutex;
@@ -35,16 +34,6 @@ impl<M> Default for MockDbInner<M> {
       u_indices: Mutex::new(HashMap::new()),
       indices:   Mutex::new(HashMap::new()),
     }
-  }
-}
-
-#[async_trait::async_trait]
-impl<M: Send + Sync + 'static> health::HealthReporter
-  for MockDatabaseAdapter<M>
-{
-  fn name(&self) -> &'static str { stringify!(MockDatabaseAdapter) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::ComponentHealth::IntrensicallyUp
   }
 }
 

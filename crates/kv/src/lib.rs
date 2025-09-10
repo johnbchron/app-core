@@ -23,7 +23,6 @@ mod key;
 mod mock_impl;
 #[cfg(feature = "redb")]
 mod redb_impl;
-mod retryable;
 #[cfg(feature = "tikv")]
 mod tikv_impl;
 mod txn_ext;
@@ -31,7 +30,6 @@ mod value;
 
 use std::{fmt, ops::Bound, sync::Arc};
 
-use hex::health;
 pub use slugger::*;
 
 #[cfg(feature = "mock")]
@@ -123,7 +121,7 @@ pub trait KvTransaction: KvPrimitive {
 
 /// Defines methods and types for performing transactions on a key-value store.
 #[async_trait::async_trait]
-pub(crate) trait KvTransactional: hex::Hexagonal {
+pub(crate) trait KvTransactional: Send + Sync {
   /// Begin an optimistic transaction.
   async fn begin_optimistic_transaction(&self) -> KvResult<DynTransaction>;
   /// Begin a pessimistic transaction.
@@ -189,18 +187,6 @@ impl fmt::Debug for KeyValueStore {
   }
 }
 
-#[async_trait::async_trait]
-impl health::HealthReporter for KeyValueStore {
-  fn name(&self) -> &'static str { stringify!(HealthReporter) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::AdditiveComponentHealth::from_futures(vec![self
-      .inner
-      .health_report()])
-    .await
-    .into()
-  }
-}
-
 impl KeyValueStore {
   /// Create a new key-value store pointing to a TiKV instance.
   #[cfg(feature = "tikv")]
@@ -209,21 +195,21 @@ impl KeyValueStore {
       inner: Arc::new(tikv_impl::TikvClient::new_from_env().await?),
     })
   }
-  #[cfg(feature = "tikv")]
-  /// Attempt with retry to create a new key-value store pointing to a TiKV
-  pub async fn new_retryable_tikv_from_env(
-    attempt_limit: u32,
-    delay: std::time::Duration,
-  ) -> Self {
-    let kv_store_init =
-      move || async move { tikv_impl::TikvClient::new_from_env().await };
-    let retryable_tikv_store =
-      hex::retryable::Retryable::init(attempt_limit, delay, kv_store_init)
-        .await;
-    Self {
-      inner: Arc::new(retryable_tikv_store),
-    }
-  }
+  // #[cfg(feature = "tikv")]
+  // /// Attempt with retry to create a new key-value store pointing to a TiKV
+  // pub async fn new_retryable_tikv_from_env(
+  //   attempt_limit: u32,
+  //   delay: std::time::Duration,
+  // ) -> Self {
+  //   let kv_store_init =
+  //     move || async move { tikv_impl::TikvClient::new_from_env().await };
+  //   let retryable_tikv_store =
+  //     hex::retryable::Retryable::init(attempt_limit, delay, kv_store_init)
+  //       .await;
+  //   Self {
+  //     inner: Arc::new(retryable_tikv_store),
+  //   }
+  // }
   /// Create a new mock store.
   #[cfg(feature = "mock")]
   pub fn new_mock() -> Self {

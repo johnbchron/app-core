@@ -10,7 +10,6 @@ use std::{
   sync::Arc,
 };
 
-use hex::health;
 use tokio::sync::{Mutex, RwLock};
 
 use crate::{
@@ -57,14 +56,6 @@ impl KvTransactional for MockStore {
       locked_keys: HashSet::new(),
       write_set:   HashMap::new(),
     }))
-  }
-}
-
-#[health::async_trait]
-impl health::HealthReporter for MockStore {
-  fn name(&self) -> &'static str { stringify!(MockStore) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::IntrensicallyUp.into()
   }
 }
 

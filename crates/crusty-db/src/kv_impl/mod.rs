@@ -5,7 +5,6 @@ mod keys;
 
 use std::ops::Bound;
 
-use hex::health::{self, HealthAware};
 use kv::*;
 use miette::{Context, IntoDiagnostic, Result};
 use model::RecordId;
@@ -727,15 +726,5 @@ impl<M: model::Model> DatabaseAdapter<M> for KvDatabaseAdapter {
       .map_err(DeleteModelError::RetryableTransaction)?;
 
     Ok(true)
-  }
-}
-
-#[async_trait::async_trait]
-impl health::HealthReporter for KvDatabaseAdapter {
-  fn name(&self) -> &'static str { stringify!(KvDatabaseAdapter) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::AdditiveComponentHealth::from_futures(Some(self.0.health_report()))
-      .await
-      .into()
   }
 }

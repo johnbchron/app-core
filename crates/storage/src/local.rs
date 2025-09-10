@@ -2,7 +2,6 @@ use std::path::{Path, PathBuf};
 
 use belt::Belt;
 use dvf::LocalStorageCredentials;
-use hex::health;
 use miette::{Context, IntoDiagnostic};
 use tokio::io::{AsyncWriteExt, BufReader, BufWriter};
 
@@ -34,14 +33,6 @@ impl LocalStorageClient {
         .wrap_err("failed to canonicalize path for `LocalStorageClient`")?
         .to_path_buf(),
     ))
-  }
-}
-
-#[async_trait::async_trait]
-impl health::HealthReporter for LocalStorageClient {
-  fn name(&self) -> &'static str { stringify!(LocalStorageClient) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::IntrensicallyUp.into()
   }
 }
 

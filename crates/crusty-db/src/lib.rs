@@ -27,7 +27,6 @@ mod tests;
 
 use std::{fmt, sync::Arc};
 
-use hex::health;
 pub use kv;
 use kv::EitherSlug;
 use miette::Result;
@@ -143,17 +142,5 @@ impl<M: model::Model> Database<M> {
     id: model::RecordId<M>,
   ) -> Result<bool, DeleteModelError> {
     self.inner.delete_model(id).await
-  }
-}
-
-#[async_trait::async_trait]
-impl<M: model::Model> health::HealthReporter for Database<M> {
-  fn name(&self) -> &'static str { stringify!(Database<M>) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::AdditiveComponentHealth::from_futures(Some(
-      self.inner.health_report(),
-    ))
-    .await
-    .into()
   }
 }

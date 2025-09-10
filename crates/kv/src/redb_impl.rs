@@ -1,6 +1,5 @@
 use std::{ops::Bound, path::Path};
 
-use hex::health;
 use miette::{miette, Context, IntoDiagnostic};
 use redb::{ReadableTable, TableDefinition, WriteTransaction};
 use tracing::instrument;
@@ -39,14 +38,6 @@ impl RedbClient {
         .into_diagnostic()
         .context("failed to create redb database")?,
     ))
-  }
-}
-
-#[async_trait::async_trait]
-impl health::HealthReporter for RedbClient {
-  fn name(&self) -> &'static str { stringify!(RedbClient) }
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::IntrensicallyUp.into()
   }
 }
 

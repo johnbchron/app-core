@@ -6,7 +6,6 @@ use std::{
 
 use belt::Belt;
 use bytes::Bytes;
-use hex::health;
 use tokio::sync::RwLock;
 
 use super::{ReadError, StorageClientLike};
@@ -27,13 +26,6 @@ impl StorageClientLike for StaticMemoryStorageClient {
     data: Belt,
   ) -> Result<dvf::FileSize, WriteError> {
     self.0.write(path, data).await
-  }
-}
-#[async_trait::async_trait]
-impl health::HealthReporter for StaticMemoryStorageClient {
-  fn name(&self) -> &'static str { self.0.name() }
-  async fn health_check(&self) -> health::ComponentHealth {
-    self.0.health_check().await
   }
 }
 
@@ -80,15 +72,6 @@ impl MemoryStorageClient {
 
 impl Default for MemoryStorageClient {
   fn default() -> Self { Self::new() }
-}
-
-#[async_trait::async_trait]
-impl health::HealthReporter for MemoryStorageClient {
-  fn name(&self) -> &'static str { stringify!(MemoryStorageClient) }
-
-  async fn health_check(&self) -> health::ComponentHealth {
-    health::IntrensicallyUp.into()
-  }
 }
 
 #[async_trait::async_trait]
