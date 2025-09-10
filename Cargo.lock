@@ -1588,7 +1588,6 @@ version = "0.1.0"
 dependencies = [
  "async-trait",
  "miette",
- "redb",
  "rmp-serde",
  "serde",
  "slugger",
@@ -1609,6 +1608,17 @@ dependencies = [
  "slugger",
  "thiserror 2.0.12",
  "tokio",
+]
+
+[[package]]
+name = "kv-redb-impl"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "kv",
+ "miette",
+ "redb",
+ "tracing",
 ]
 
 [[package]]

@@ -19,8 +19,6 @@
 //! feature flags.
 
 mod key;
-#[cfg(feature = "redb")]
-mod redb_impl;
 mod txn_ext;
 mod value;
 
@@ -39,40 +37,40 @@ pub enum KvError {
   PlatformError(miette::Report),
 }
 
-#[cfg(feature = "redb")]
-mod redb_error_impl {
-  use super::KvError;
+// #[cfg(feature = "redb")]
+// mod redb_error_impl {
+//   use super::KvError;
 
-  impl From<redb::TransactionError> for KvError {
-    fn from(error: redb::TransactionError) -> Self {
-      KvError::PlatformError(miette::Report::from_err(error))
-    }
-  }
+//   impl From<redb::TransactionError> for KvError {
+//     fn from(error: redb::TransactionError) -> Self {
+//       KvError::PlatformError(miette::Report::from_err(error))
+//     }
+//   }
 
-  impl From<redb::TableError> for KvError {
-    fn from(error: redb::TableError) -> Self {
-      KvError::PlatformError(miette::Report::from_err(error))
-    }
-  }
+//   impl From<redb::TableError> for KvError {
+//     fn from(error: redb::TableError) -> Self {
+//       KvError::PlatformError(miette::Report::from_err(error))
+//     }
+//   }
 
-  impl From<redb::StorageError> for KvError {
-    fn from(error: redb::StorageError) -> Self {
-      KvError::PlatformError(miette::Report::from_err(error))
-    }
-  }
+//   impl From<redb::StorageError> for KvError {
+//     fn from(error: redb::StorageError) -> Self {
+//       KvError::PlatformError(miette::Report::from_err(error))
+//     }
+//   }
 
-  impl From<redb::SavepointError> for KvError {
-    fn from(error: redb::SavepointError) -> Self {
-      KvError::PlatformError(miette::Report::from_err(error))
-    }
-  }
+//   impl From<redb::SavepointError> for KvError {
+//     fn from(error: redb::SavepointError) -> Self {
+//       KvError::PlatformError(miette::Report::from_err(error))
+//     }
+//   }
 
-  impl From<redb::CommitError> for KvError {
-    fn from(error: redb::CommitError) -> Self {
-      KvError::PlatformError(miette::Report::from_err(error))
-    }
-  }
-}
+//   impl From<redb::CommitError> for KvError {
+//     fn from(error: redb::CommitError) -> Self {
+//       KvError::PlatformError(miette::Report::from_err(error))
+//     }
+//   }
+// }
 
 /// Represents the result of a key-value operation.
 pub type KvResult<T> = Result<T, KvError>;
@@ -175,13 +173,6 @@ impl fmt::Debug for KeyValueStore {
 impl KeyValueStore {
   /// Create a new key-value store from an arbitrary implementer.
   pub fn new(inner: Arc<dyn KvTransactional>) -> Self { Self { inner } }
-  /// Create a new key-value store built on a ReDB backend.
-  #[cfg(feature = "redb")]
-  pub fn new_redb(path: impl AsRef<std::path::Path>) -> miette::Result<Self> {
-    Ok(Self {
-      inner: Arc::new(redb_impl::RedbClient::new(path)?),
-    })
-  }
 
   /// Begin an optimistic transaction.
   pub async fn begin_optimistic_transaction(&self) -> KvResult<DynTransaction> {

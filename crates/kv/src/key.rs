@@ -127,53 +127,6 @@ impl TryFrom<Vec<u8>> for Key {
   }
 }
 
-#[cfg(feature = "redb")]
-mod redb {
-  use std::any::type_name;
-
-  use super::Key;
-
-  impl redb::Key for Key {
-    fn compare(data1: &[u8], data2: &[u8]) -> std::cmp::Ordering {
-      let key1 =
-        Key::try_from(data1).expect("failed to deserialize key from redb");
-      let key2 =
-        Key::try_from(data2).expect("failed to deserialize key from redb");
-      key1.cmp(&key2)
-    }
-  }
-
-  impl redb::Value for Key {
-    type SelfType<'a>
-      = Self
-    where
-      Self: 'a;
-
-    type AsBytes<'a>
-      = String
-    where
-      Self: 'a;
-
-    fn fixed_width() -> Option<usize> { None }
-
-    fn from_bytes<'a>(data: &'a [u8]) -> Self::SelfType<'a>
-    where
-      Self: 'a,
-    {
-      Self::try_from(data).expect("failed to deserialize key from redb")
-    }
-
-    fn as_bytes<'a, 'b: 'a>(value: &'a Self::SelfType<'b>) -> Self::AsBytes<'a>
-    where
-      Self: 'b,
-    {
-      value.to_string()
-    }
-
-    fn type_name() -> redb::TypeName { redb::TypeName::new(type_name::<Key>()) }
-  }
-}
-
 #[cfg(test)]
 mod tests {
   use std::sync::LazyLock;

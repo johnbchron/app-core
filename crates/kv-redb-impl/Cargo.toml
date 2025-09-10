@@ -1,0 +1,16 @@
+[package]
+edition = "2024"
+name = "kv-redb-impl"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+kv = { path = "../kv" }
+
+async-trait.workspace = true
+miette.workspace = true
+redb = { version = "2.4" }
+tracing.workspace = true
+
+[lints]
+workspace = true
