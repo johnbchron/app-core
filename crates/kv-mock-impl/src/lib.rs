@@ -10,12 +10,11 @@ use std::{
   sync::Arc,
 };
 
-use tokio::sync::{Mutex, RwLock};
-
-use crate::{
-  key::Key, value::Value, DynTransaction, KvError, KvPrimitive, KvResult,
-  KvTransaction, KvTransactional,
+use kv::{
+  DynTransaction, Key, KvError, KvPrimitive, KvResult, KvTransaction,
+  KvTransactional, Value,
 };
+use tokio::sync::{Mutex, RwLock};
 
 /// A mock key-value store.
 #[derive(Clone)]
@@ -144,12 +143,12 @@ impl KvPrimitive for OptimisticTransaction {
           "Key already exists"
         )));
       }
-    } else if let Some(existing_value) = self.read_set.get(key) {
-      if existing_value.is_some() {
-        return Err(KvError::PlatformError(miette::miette!(
-          "Key already exists"
-        )));
-      }
+    } else if let Some(existing_value) = self.read_set.get(key)
+      && existing_value.is_some()
+    {
+      return Err(KvError::PlatformError(miette::miette!(
+        "Key already exists"
+      )));
     }
 
     self.write_set.insert(key.clone(), Some(value));
@@ -180,16 +179,14 @@ impl KvPrimitive for OptimisticTransaction {
         Bound::Unbounded => true,
       };
 
-      if in_range {
-        if let Some(value) = data.get(&key) {
-          self.read_set.insert(key.clone(), Some(value.clone()));
-          result.push((key.clone(), value.clone()));
+      if in_range && let Some(value) = data.get(&key) {
+        self.read_set.insert(key.clone(), Some(value.clone()));
+        result.push((key.clone(), value.clone()));
 
-          if let Some(limit) = limit {
-            if result.len() == limit as usize {
-              break;
-            }
-          }
+        if let Some(limit) = limit
+          && result.len() == limit as usize
+        {
+          break;
         }
       }
     }

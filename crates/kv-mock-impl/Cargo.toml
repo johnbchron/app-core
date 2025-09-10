@@ -1,0 +1,20 @@
+[package]
+edition = "2024"
+name = "kv-mock-impl"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+kv = { path = "../kv" }
+
+async-trait.workspace = true
+miette.workspace = true
+thiserror.workspace = true
+tokio = { workspace = true, features = ["sync"] }
+
+[dev-dependencies]
+slugger = { path = "../slugger" }
+tokio = { workspace = true, features = ["macros", "rt-multi-thread"] }
+
+[lints]
+workspace = true

@@ -19,8 +19,6 @@
 //! feature flags.
 
 mod key;
-#[cfg(feature = "mock")]
-mod mock_impl;
 #[cfg(feature = "redb")]
 mod redb_impl;
 #[cfg(feature = "tikv")]
@@ -32,8 +30,6 @@ use std::{fmt, ops::Bound, sync::Arc};
 
 pub use slugger::*;
 
-#[cfg(feature = "mock")]
-pub use self::mock_impl::MockStore;
 pub use self::{key::Key, txn_ext::KvTransactionExt, value::Value};
 
 /// Represents errors that can occur when interacting with a key-value store.
@@ -121,7 +117,7 @@ pub trait KvTransaction: KvPrimitive {
 
 /// Defines methods and types for performing transactions on a key-value store.
 #[async_trait::async_trait]
-pub(crate) trait KvTransactional: Send + Sync {
+pub trait KvTransactional: Send + Sync {
   /// Begin an optimistic transaction.
   async fn begin_optimistic_transaction(&self) -> KvResult<DynTransaction>;
   /// Begin a pessimistic transaction.
@@ -133,10 +129,8 @@ pub(crate) trait KvTransactional: Send + Sync {
 pub struct DynTransaction(Box<dyn KvTransaction + Send + Sync + 'static>);
 
 impl DynTransaction {
-  #[cfg(any(feature = "mock", feature = "redb", feature = "tikv"))]
-  pub(crate) fn new<T: KvTransaction + Send + Sync + 'static>(
-    inner: T,
-  ) -> Self {
+  /// Creates a new dynamic transaction.
+  pub fn new<T: KvTransaction + Send + Sync + 'static>(inner: T) -> Self {
     Self(Box::new(inner))
   }
 }
@@ -188,6 +182,8 @@ impl fmt::Debug for KeyValueStore {
 }
 
 impl KeyValueStore {
+  /// Create a new key-value store from an arbitrary implementer.
+  pub fn new(inner: Arc<dyn KvTransactional>) -> Self { Self { inner } }
   /// Create a new key-value store pointing to a TiKV instance.
   #[cfg(feature = "tikv")]
   pub async fn new_tikv_from_env() -> miette::Result<Self> {
@@ -210,20 +206,6 @@ impl KeyValueStore {
   //     inner: Arc::new(retryable_tikv_store),
   //   }
   // }
-  /// Create a new mock store.
-  #[cfg(feature = "mock")]
-  pub fn new_mock() -> Self {
-    {
-      Self {
-        inner: mock_impl::MockStore::new(),
-      }
-    }
-  }
-  /// Create a new store from a mock store.
-  #[cfg(feature = "mock")]
-  pub fn from_mock(mock: Arc<mock_impl::MockStore>) -> Self {
-    Self { inner: mock }
-  }
   /// Create a new key-value store built on a ReDB backend.
   #[cfg(feature = "redb")]
   pub fn new_redb(path: impl AsRef<std::path::Path>) -> miette::Result<Self> {

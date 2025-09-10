@@ -19,7 +19,7 @@ tokio = { workspace = true, features = ["rt", "sync"] }
 tracing.workspace = true
 
 [dev-dependencies]
-kv = { path = "../kv", features = ["mock"] }
+kv-mock-impl = { path = "../kv-mock-impl" }
 miette = { workspace = true, features = ["fancy"] }
 serde.workspace = true
 tokio = { workspace = true, features = ["full"] }

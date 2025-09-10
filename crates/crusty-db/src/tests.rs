@@ -77,7 +77,7 @@ struct KvMockedInstantiator;
 
 impl DbInstantiator for KvMockedInstantiator {
   fn init<M: Model>() -> Database<M> {
-    Database::new_from_kv(KeyValueStore::new_mock())
+    Database::new_from_kv(KeyValueStore::new(kv_mock_impl::MockStore::new()))
   }
 }
 

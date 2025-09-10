@@ -644,6 +644,7 @@ dependencies = [
  "async-trait",
  "generic-tests",
  "kv",
+ "kv-mock-impl",
  "miette",
  "model",
  "serde",
@@ -1597,6 +1598,18 @@ dependencies = [
  "tikv-client",
  "tokio",
  "tracing",
+]
+
+[[package]]
+name = "kv-mock-impl"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "kv",
+ "miette",
+ "slugger",
+ "thiserror 2.0.12",
+ "tokio",
 ]
 
 [[package]]
