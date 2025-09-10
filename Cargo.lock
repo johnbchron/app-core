@@ -1595,7 +1595,6 @@ dependencies = [
  "smallvec",
  "starc",
  "thiserror 2.0.12",
- "tikv-client",
  "tokio",
  "tracing",
 ]
@@ -1610,6 +1609,17 @@ dependencies = [
  "slugger",
  "thiserror 2.0.12",
  "tokio",
+]
+
+[[package]]
+name = "kv-tikv-impl"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "kv",
+ "miette",
+ "tikv-client",
+ "tracing",
 ]
 
 [[package]]

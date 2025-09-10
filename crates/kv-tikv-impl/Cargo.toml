@@ -1,0 +1,16 @@
+[package]
+edition = "2024"
+name = "kv-tikv-impl"
+publish = false
+version = "0.1.0"
+
+[dependencies]
+kv = { path = "../kv" }
+
+async-trait.workspace = true
+miette.workspace = true
+tikv-client = { git = "https://github.com/johnbchron/tikv-client-rust", branch = "crunch-deps", default-features = false }
+tracing.workspace = true
+
+[lints]
+workspace = true

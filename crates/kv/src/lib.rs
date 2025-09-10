@@ -21,8 +21,6 @@
 mod key;
 #[cfg(feature = "redb")]
 mod redb_impl;
-#[cfg(feature = "tikv")]
-mod tikv_impl;
 mod txn_ext;
 mod value;
 
@@ -39,13 +37,6 @@ pub enum KvError {
   #[error("platform error: {0}")]
   #[diagnostic(transparent)]
   PlatformError(miette::Report),
-}
-
-#[cfg(feature = "tikv")]
-impl From<tikv_client::Error> for KvError {
-  fn from(error: tikv_client::Error) -> Self {
-    KvError::PlatformError(miette::Report::from_err(error))
-  }
 }
 
 #[cfg(feature = "redb")]
@@ -184,28 +175,6 @@ impl fmt::Debug for KeyValueStore {
 impl KeyValueStore {
   /// Create a new key-value store from an arbitrary implementer.
   pub fn new(inner: Arc<dyn KvTransactional>) -> Self { Self { inner } }
-  /// Create a new key-value store pointing to a TiKV instance.
-  #[cfg(feature = "tikv")]
-  pub async fn new_tikv_from_env() -> miette::Result<Self> {
-    Ok(Self {
-      inner: Arc::new(tikv_impl::TikvClient::new_from_env().await?),
-    })
-  }
-  // #[cfg(feature = "tikv")]
-  // /// Attempt with retry to create a new key-value store pointing to a TiKV
-  // pub async fn new_retryable_tikv_from_env(
-  //   attempt_limit: u32,
-  //   delay: std::time::Duration,
-  // ) -> Self {
-  //   let kv_store_init =
-  //     move || async move { tikv_impl::TikvClient::new_from_env().await };
-  //   let retryable_tikv_store =
-  //     hex::retryable::Retryable::init(attempt_limit, delay, kv_store_init)
-  //       .await;
-  //   Self {
-  //     inner: Arc::new(retryable_tikv_store),
-  //   }
-  // }
   /// Create a new key-value store built on a ReDB backend.
   #[cfg(feature = "redb")]
   pub fn new_redb(path: impl AsRef<std::path::Path>) -> miette::Result<Self> {
