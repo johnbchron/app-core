@@ -31,11 +31,15 @@ use std::{fmt, sync::Arc};
 
 pub use kv;
 use kv::EitherSlug;
-use miette::{Context, IntoDiagnostic, Result};
+use miette::Result;
+#[cfg(feature = "postgres")]
+use miette::{Context, IntoDiagnostic};
 use model::RecordId;
+#[cfg(feature = "postgres")]
+use postgres_impl::PostgresAdapter;
 
 pub use self::adapter::*;
-use self::{kv_impl::KvDatabaseAdapter, postgres_impl::PostgresAdapter};
+use self::kv_impl::KvDatabaseAdapter;
 
 /// A database.
 #[derive(Clone)]
