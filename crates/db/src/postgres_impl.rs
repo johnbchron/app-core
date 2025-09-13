@@ -125,12 +125,12 @@ impl<M: Model> PostgresAdapter<M> {
 
         // Check if this unique index already exists for a different model
         let existing_query = format!(
-          "SELECT model_id FROM {} WHERE index_name = $1 AND index_value = $2",
-          unique_index_table
+          "SELECT model_id FROM {unique_index_table} WHERE index_name = $1 \
+           AND index_value = $2"
         );
         let existing: Option<(Vec<u8>,)> = sqlx::query_as(&existing_query)
           .bind(&index_name)
-          .bind(&serialized_value)
+          .bind(serialized_value.as_bytes())
           .fetch_optional(&mut **tx)
           .await
           .into_diagnostic()
@@ -147,11 +147,10 @@ impl<M: Model> PostgresAdapter<M> {
 
         // Insert or update the unique index
         let upsert_query = format!(
-          "INSERT INTO {} (model_id, index_name, index_value) VALUES ($1, $2, \
-           $3) 
+          "INSERT INTO {unique_index_table} (model_id, index_name, \
+           index_value) VALUES ($1, $2, $3) 
                      ON CONFLICT (index_name, index_value) DO UPDATE SET \
-           model_id = $1",
-          unique_index_table
+           model_id = $1"
         );
         sqlx::query(&upsert_query)
           .bind(model_id)
@@ -171,8 +170,7 @@ impl<M: Model> PostgresAdapter<M> {
 
       // First, remove old indices for this model and index name
       let delete_query = format!(
-        "DELETE FROM {} WHERE model_id = $1 AND index_name = $2",
-        index_table
+        "DELETE FROM {index_table} WHERE model_id = $1 AND index_name = $2"
       );
       sqlx::query(&delete_query)
         .bind(model_id)
@@ -187,9 +185,8 @@ impl<M: Model> PostgresAdapter<M> {
         let serialized_value = index_value.to_string();
 
         let insert_query = format!(
-          "INSERT INTO {} (model_id, index_name, index_value) VALUES ($1, $2, \
-           $3)",
-          index_table
+          "INSERT INTO {index_table} (model_id, index_name, index_value) \
+           VALUES ($1, $2, $3)"
         );
         sqlx::query(&insert_query)
           .bind(model_id)
@@ -216,7 +213,7 @@ impl<M: Model> PostgresAdapter<M> {
 
     // Remove unique indices
     let delete_unique_query =
-      format!("DELETE FROM {} WHERE model_id = $1", unique_index_table);
+      format!("DELETE FROM {unique_index_table} WHERE model_id = $1");
     sqlx::query(&delete_unique_query)
       .bind(model_id)
       .execute(&mut **tx)
@@ -226,7 +223,7 @@ impl<M: Model> PostgresAdapter<M> {
 
     // Remove regular indices
     let delete_regular_query =
-      format!("DELETE FROM {} WHERE model_id = $1", index_table);
+      format!("DELETE FROM {index_table} WHERE model_id = $1");
     sqlx::query(&delete_regular_query)
       .bind(model_id)
       .execute(&mut **tx)
@@ -325,8 +322,8 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
 
     // First, find the model ID from the unique index
     let find_id_query = format!(
-      "SELECT model_id FROM {} WHERE index_name = $1 AND index_value = $2",
-      unique_index_table
+      "SELECT model_id FROM {unique_index_table} WHERE index_name = $1 AND \
+       index_value = $2"
     );
     let model_id_row: Option<(Vec<u8>,)> = sqlx::query_as(&find_id_query)
       .bind(&index_name)
@@ -371,8 +368,8 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
     let serialized_value = index_value.to_string();
 
     let query = format!(
-      "SELECT model_id FROM {} WHERE index_name = $1 AND index_value = $2",
-      index_table
+      "SELECT model_id FROM {index_table} WHERE index_name = $1 AND \
+       index_value = $2"
     );
     let rows: Vec<(Vec<u8>,)> = sqlx::query_as(&query)
       .bind(&index_name)
@@ -400,8 +397,8 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
     let serialized_value = index_value.to_string();
 
     let query = format!(
-      "SELECT COUNT(*) FROM {} WHERE index_name = $1 AND index_value = $2",
-      index_table
+      "SELECT COUNT(*) FROM {index_table} WHERE index_name = $1 AND \
+       index_value = $2"
     );
     let count: (i64,) = sqlx::query_as(&query)
       .bind(&index_name)
@@ -438,9 +435,8 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
     model: M,
   ) -> Result<M, PatchModelError> {
     let model_id_bytes = id.inner().to_bytes();
-    let serialized_model = rmp_serde::to_vec(&model)
-      .into_diagnostic()
-      .map_err(PatchModelError::Serde)?;
+    let serialized_model =
+      serialize_model(&model).map_err(PatchModelError::Serde)?;
 
     let mut tx = self
       .pool
