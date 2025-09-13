@@ -8,7 +8,7 @@ pub use self::errors::*;
 
 /// An adapter for a model-based database.
 #[async_trait::async_trait]
-pub(crate) trait DatabaseAdapter<M: model::Model> {
+pub(crate) trait DatabaseAdapter<M: model::Model>: Send + Sync {
   /// Creates a new model.
   async fn create_model(&self, model: M) -> Result<M, CreateModelError>;
 
