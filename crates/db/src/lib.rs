@@ -22,6 +22,8 @@
 mod adapter;
 mod kv_impl;
 mod mock_impl;
+#[cfg(feature = "postgres")]
+mod postgres_impl;
 #[cfg(test)]
 mod tests;
 
@@ -29,11 +31,11 @@ use std::{fmt, sync::Arc};
 
 pub use kv;
 use kv::EitherSlug;
-use miette::Result;
+use miette::{Context, IntoDiagnostic, Result};
 use model::RecordId;
 
 pub use self::adapter::*;
-use self::kv_impl::KvDatabaseAdapter;
+use self::{kv_impl::KvDatabaseAdapter, postgres_impl::PostgresAdapter};
 
 /// A database.
 #[derive(Clone)]
@@ -55,6 +57,24 @@ impl<M: model::Model> Database<M> {
     Self {
       inner: Arc::new(KvDatabaseAdapter::new(kv_store)),
     }
+  }
+
+  #[cfg(feature = "postgres")]
+  /// Creates a new database from a Postgres connection string.
+  pub async fn new_from_postgres(url: &str) -> miette::Result<Self> {
+    let adapter = PostgresAdapter::new(
+      sqlx::PgPool::connect(url)
+        .await
+        .into_diagnostic()
+        .context("failed to connect to postgres")?,
+    );
+    adapter
+      .initialize_schema()
+      .await
+      .context("failed to initialize postgres schema")?;
+    Ok(Self {
+      inner: Arc::new(adapter),
+    })
   }
 
   /// Creates a new database based on a mocked store.

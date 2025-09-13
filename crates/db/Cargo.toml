@@ -14,6 +14,12 @@ model = { path = "../model" }
 async-trait.workspace = true
 generic-tests = "0.1.3"
 miette.workspace = true
+rmp-serde = { workspace = true, optional = true }
+sqlx = { version = "0.7", features = [
+  "runtime-tokio-rustls",
+  "postgres",
+  "chrono",
+], optional = true }
 thiserror.workspace = true
 tokio = { workspace = true, features = ["rt", "sync"] }
 tracing.workspace = true
@@ -24,3 +30,8 @@ miette = { workspace = true, features = ["fancy"] }
 serde.workspace = true
 tokio = { workspace = true, features = ["full"] }
 ulid = { workspace = true }
+
+[features]
+default = []
+
+postgres = ["dep:sqlx", "rmp-serde"]

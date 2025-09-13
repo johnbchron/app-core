@@ -1,4 +1,6 @@
-use std::{fmt, hash::Hash, marker::PhantomData, str::FromStr};
+use std::{
+  array::TryFromSliceError, fmt, hash::Hash, marker::PhantomData, str::FromStr,
+};
 
 use serde::{Deserialize, Serialize};
 pub use ulid::Ulid;
@@ -66,6 +68,8 @@ impl<T> RecordId<T> {
   pub fn new() -> Self { Self(Ulid::new(), PhantomData) }
   /// Creates a new [`RecordId`] from a [`Ulid`].
   pub const fn from_ulid(ulid: Ulid) -> Self { Self(ulid, PhantomData) }
+  /// Returns the inner [`Ulid`].
+  pub const fn inner(self) -> Ulid { self.0 }
   /// Returns the minimum possible [`RecordId`].
   #[allow(non_snake_case)]
   pub const fn MIN() -> Self { Self(Ulid::nil(), PhantomData) }
@@ -78,6 +82,14 @@ impl<T> FromStr for RecordId<T> {
   type Err = ulid::DecodeError;
   fn from_str(s: &str) -> Result<Self, Self::Err> {
     Ok(Self(Ulid::from_str(s)?, PhantomData))
+  }
+}
+
+impl<T> TryFrom<&[u8]> for RecordId<T> {
+  type Error = TryFromSliceError;
+
+  fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+    Ok(Self(Ulid::from_bytes(value.try_into()?), PhantomData))
   }
 }
 
