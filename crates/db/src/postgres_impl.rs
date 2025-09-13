@@ -250,30 +250,13 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
       .into_diagnostic()
       .map_err(CreateModelError::Db)?;
 
-    // Check if model with this ID already exists
-    let exists_query = format!("SELECT 1 FROM {} WHERE id = $1", M::TABLE_NAME);
-    let exists: Option<(i32,)> = sqlx::query_as(&exists_query)
-      .bind(model_id_bytes)
-      .fetch_optional(&mut *tx)
-      .await
-      .into_diagnostic()
-      .map_err(CreateModelError::Db)?;
-
-    if exists.is_some() {
-      return Err(CreateModelError::ModelAlreadyExists);
-    }
-
-    // Update indices first to check for unique constraint violations
-    self
-      .update_indices(&mut tx, &model_id_bytes, &model)
-      .await?;
-
-    // Insert the model
+    // Insert model with conflict handling
     let insert_query = format!(
-      "INSERT INTO {} (id, data, updated_at) VALUES ($1, $2, NOW())",
+      "INSERT INTO {} (id, data, updated_at) VALUES ($1, $2, NOW()) ON \
+       CONFLICT (id) DO NOTHING",
       M::TABLE_NAME
     );
-    sqlx::query(&insert_query)
+    let result = sqlx::query(&insert_query)
       .bind(model_id_bytes)
       .bind(&serialized_model)
       .execute(&mut *tx)
@@ -281,12 +264,25 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
       .into_diagnostic()
       .map_err(CreateModelError::Db)?;
 
-    tx.commit()
-      .await
-      .into_diagnostic()
-      .map_err(CreateModelError::Db)?;
+    if result.rows_affected() == 0 {
+      return Err(CreateModelError::ModelAlreadyExists);
+    }
 
-    Ok(model)
+    // Now update indices - if there's a unique constraint violation,
+    // the database will handle it
+    match self.update_indices(&mut tx, &model_id_bytes, &model).await {
+      Ok(()) => {
+        tx.commit()
+          .await
+          .into_diagnostic()
+          .map_err(CreateModelError::Db)?;
+        Ok(model)
+      }
+      Err(e) => {
+        // Transaction will auto-rollback on drop
+        Err(e)
+      }
+    }
   }
 
   async fn fetch_model_by_id(
