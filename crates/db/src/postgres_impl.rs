@@ -61,7 +61,7 @@ impl<M: Model> PostgresAdapter<M> {
             CREATE TABLE IF NOT EXISTS {} (
                 model_id BYTEA NOT NULL REFERENCES {} (id) ON DELETE CASCADE,
                 index_name TEXT NOT NULL,
-                index_value BYTEA NOT NULL,
+                index_value TEXT NOT NULL,
                 PRIMARY KEY (index_name, index_value)
             )
             "#,
@@ -80,7 +80,7 @@ impl<M: Model> PostgresAdapter<M> {
             CREATE TABLE IF NOT EXISTS {} (
                 model_id BYTEA NOT NULL REFERENCES {} (id) ON DELETE CASCADE,
                 index_name TEXT NOT NULL,
-                index_value BYTEA NOT NULL
+                index_value TEXT NOT NULL
             )
             "#,
       index_table,
@@ -130,7 +130,7 @@ impl<M: Model> PostgresAdapter<M> {
         );
         let existing: Option<(Vec<u8>,)> = sqlx::query_as(&existing_query)
           .bind(&index_name)
-          .bind(serialized_value.as_bytes())
+          .bind(&serialized_value)
           .fetch_optional(&mut **tx)
           .await
           .into_diagnostic()
