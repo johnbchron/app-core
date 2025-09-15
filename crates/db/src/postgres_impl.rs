@@ -17,6 +17,14 @@ fn deserialize_model<M: Model>(data: &[u8]) -> Result<M, Report> {
   rmp_serde::from_slice(data).into_diagnostic()
 }
 
+fn unique_index_table_name<M: Model>() -> String {
+  format!("{}_unique_indices", M::TABLE_NAME)
+}
+
+fn index_table_name<M: Model>() -> String {
+  format!("{}_indices", M::TABLE_NAME)
+}
+
 /// PostgreSQL implementation of the DatabaseAdapter trait.
 pub struct PostgresAdapter<M: Model> {
   pool:     PgPool,
@@ -55,7 +63,7 @@ impl<M: Model> PostgresAdapter<M> {
       .into_diagnostic()?;
 
     // Create unique index table
-    let unique_index_table = format!("{}_unique_indices", M::TABLE_NAME);
+    let unique_index_table = unique_index_table_name::<M>();
     let create_unique_index_query = format!(
       r#"
             CREATE TABLE IF NOT EXISTS {} (
@@ -74,7 +82,7 @@ impl<M: Model> PostgresAdapter<M> {
       .into_diagnostic()?;
 
     // Create regular index table
-    let index_table = format!("{}_indices", M::TABLE_NAME);
+    let index_table = index_table_name::<M>();
     let create_index_query = format!(
       r#"
             CREATE TABLE IF NOT EXISTS {} (
@@ -112,8 +120,8 @@ impl<M: Model> PostgresAdapter<M> {
     model_id: &[u8],
     model: &M,
   ) -> Result<(), CreateModelError> {
-    let unique_index_table = format!("{}_unique_indices", M::TABLE_NAME);
-    let index_table = format!("{}_indices", M::TABLE_NAME);
+    let unique_index_table = unique_index_table_name::<M>();
+    let index_table = index_table_name::<M>();
 
     // Handle unique indices
     for (selector, getter) in M::UNIQUE_INDICES {
@@ -208,8 +216,8 @@ impl<M: Model> PostgresAdapter<M> {
     tx: &mut Transaction<'_, Postgres>,
     model_id: &[u8],
   ) -> Result<(), DeleteModelError> {
-    let unique_index_table = format!("{}_unique_indices", M::TABLE_NAME);
-    let index_table = format!("{}_indices", M::TABLE_NAME);
+    let unique_index_table = unique_index_table_name::<M>();
+    let index_table = index_table_name::<M>();
 
     // Remove unique indices
     let delete_unique_query =
@@ -312,7 +320,7 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
     index_selector: M::UniqueIndexSelector,
     index_value: EitherSlug,
   ) -> Result<Option<M>, FetchModelByIndexError> {
-    let unique_index_table = format!("{}_unique_indices", M::TABLE_NAME);
+    let unique_index_table = unique_index_table_name::<M>();
     let index_name = index_selector.to_string();
     let serialized_value = index_value.to_string();
 
@@ -359,7 +367,7 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
     index_selector: M::IndexSelector,
     index_value: EitherSlug,
   ) -> Result<Vec<RecordId<M>>, FetchModelByIndexError> {
-    let index_table = format!("{}_indices", M::TABLE_NAME);
+    let index_table = index_table_name::<M>();
     let index_name = index_selector.to_string();
     let serialized_value = index_value.to_string();
 
@@ -388,7 +396,7 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
     index_selector: M::IndexSelector,
     index_value: EitherSlug,
   ) -> Result<u32, FetchModelByIndexError> {
-    let index_table = format!("{}_indices", M::TABLE_NAME);
+    let index_table = index_table_name::<M>();
     let index_name = index_selector.to_string();
     let serialized_value = index_value.to_string();
 
