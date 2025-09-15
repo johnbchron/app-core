@@ -383,10 +383,19 @@ impl<M: Model> super::DatabaseAdapter<M> for PostgresAdapter<M> {
       .into_diagnostic()
       .map_err(FetchModelByIndexError::Db)?;
 
-    let ids = rows
-      .into_iter()
-      .filter_map(|(id_bytes,)| RecordId::try_from(id_bytes.as_ref()).ok())
-      .collect();
+    let mut ids = Vec::with_capacity(rows.len());
+    for (id_bytes,) in rows {
+      match RecordId::try_from(id_bytes.as_ref()) {
+        Ok(id) => {
+          ids.push(id);
+        }
+        Err(e) => {
+          tracing::warn!(
+            "failed to deserialize ID from bytes ({id_bytes:x?}): {e}",
+          );
+        }
+      }
+    }
 
     Ok(ids)
   }
