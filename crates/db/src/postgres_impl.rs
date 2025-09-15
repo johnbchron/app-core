@@ -131,43 +131,46 @@ impl<M: Model> PostgresAdapter<M> {
       for index_value in index_values {
         let serialized_value = index_value.to_string();
 
-        // Check if this unique index already exists for a different model
-        let existing_query = format!(
-          "SELECT model_id FROM {unique_index_table} WHERE index_name = $1 \
-           AND index_value = $2"
+        // Atomic check-and-set operation
+        let upsert_query = format!(
+          r#"
+        INSERT INTO {unique_index_table} (model_id, index_name, index_value) 
+        VALUES ($1, $2, $3)
+        ON CONFLICT (index_name, index_value) DO UPDATE SET 
+          model_id = CASE 
+            WHEN {unique_index_table}.model_id = $1 THEN $1
+            ELSE (
+              SELECT pg_catalog.pg_trigger_depth() 
+              FROM pg_catalog.pg_trigger_depth() 
+              WHERE FALSE -- Force error
+            )
+          END
+        "#
         );
-        let existing: Option<(Vec<u8>,)> = sqlx::query_as(&existing_query)
+
+        let result = sqlx::query(&upsert_query)
+          .bind(model_id)
           .bind(&index_name)
           .bind(&serialized_value)
-          .fetch_optional(&mut **tx)
-          .await
-          .into_diagnostic()
-          .map_err(CreateModelError::Db)?;
+          .execute(&mut **tx)
+          .await;
 
-        if let Some((existing_model_id,)) = existing {
-          if existing_model_id != model_id {
+        // Handle the specific constraint violation
+        match result {
+          Err(sqlx::Error::Database(_)) => {
+            // This will be a function error from our CASE statement
             return Err(CreateModelError::UniqueIndexAlreadyExists {
               index_selector: index_name,
               index_value,
             });
           }
+          Err(e) => {
+            return Err(CreateModelError::Db(
+              Err::<(), _>(e).into_diagnostic().unwrap_err(),
+            ));
+          }
+          Ok(_) => {} // Success
         }
-
-        // Insert or update the unique index
-        let upsert_query = format!(
-          "INSERT INTO {unique_index_table} (model_id, index_name, \
-           index_value) VALUES ($1, $2, $3) 
-                     ON CONFLICT (index_name, index_value) DO UPDATE SET \
-           model_id = $1"
-        );
-        sqlx::query(&upsert_query)
-          .bind(model_id)
-          .bind(&index_name)
-          .bind(&serialized_value)
-          .execute(&mut **tx)
-          .await
-          .into_diagnostic()
-          .map_err(CreateModelError::Db)?;
       }
     }
 
