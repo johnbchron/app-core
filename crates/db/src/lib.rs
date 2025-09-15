@@ -37,6 +37,8 @@ use miette::{Context, IntoDiagnostic};
 use model::RecordId;
 #[cfg(feature = "postgres")]
 use postgres_impl::PostgresAdapter;
+#[cfg(feature = "postgres")]
+pub use sqlx::PgPool;
 
 pub use self::adapter::*;
 use self::kv_impl::KvDatabaseAdapter;
@@ -65,13 +67,8 @@ impl<M: model::Model> Database<M> {
 
   #[cfg(feature = "postgres")]
   /// Creates a new database from a Postgres connection string.
-  pub async fn new_from_postgres(url: &str) -> miette::Result<Self> {
-    let adapter = PostgresAdapter::new(
-      sqlx::PgPool::connect(url)
-        .await
-        .into_diagnostic()
-        .context("failed to connect to postgres")?,
-    );
+  pub async fn new_from_postgres(pool: PgPool) -> miette::Result<Self> {
+    let adapter = PostgresAdapter::new(pool);
     adapter
       .initialize_schema()
       .await
